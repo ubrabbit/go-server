@@ -1,0 +1,15 @@
+labix.org/v2/mgo
+
+golang.org/x/text/encoding/simplifiedchinese
+golang.org/x/text/transform
+
+github.com/go-sql-driver/mysql
+github.com/garyburd/redigo/redis
+github.com/streadway/amqp
+github.com/bitly/go-simplejson
+github.com/golang/protobuf
+github.com/ubrabbit/go-config
+
+github.com/davyxu/cellnet
+github.com/davyxu/golog
+github.com/davyxu/goobjfmt
