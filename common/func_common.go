@@ -86,11 +86,3 @@ func IntToBytes(n int) []byte {
 	binary.Write(bytesBuffer, binary.BigEndian, x)
 	return bytesBuffer.Bytes()
 }
-
-func SplitMailbox(mb string) (string, string) {
-	sl := strings.Split(mb, "@")
-	if len(sl) < 2 {
-		return "", ""
-	}
-	return sl[0], sl[1]
-}

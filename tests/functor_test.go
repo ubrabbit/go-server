@@ -15,6 +15,8 @@ func callTest(args ...interface{}) {
 }
 
 func TestFunctor(t *testing.T) {
+	fmt.Printf("\n\n=====================  TestFunctor  =====================\n")
+
 	obj := NewFunctor("test", callTest, 1, "2")
 	obj.Call("3")
 }

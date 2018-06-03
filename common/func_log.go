@@ -2,6 +2,7 @@ package common
 
 import (
 	golog "github.com/davyxu/golog"
+	"time"
 )
 
 var (
@@ -16,6 +17,13 @@ func NewLog(name string, filepath string) *golog.Logger {
 		golog.SetOutputLogger(name, filepath)
 	}
 	return obj
+}
+
+func formatLogTime() string {
+	currentTime := time.Now().Local()
+	//2006-01-02 15:04:05是go的时间原点
+	newFormat := currentTime.Format("[2006-01-02 15:04:05] ")
+	return newFormat
 }
 
 func LogFatal(v ...interface{}) {
