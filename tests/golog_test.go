@@ -17,7 +17,8 @@ func TestGolog(t *testing.T) {
 	if err != nil {
 		log.Fatalf("SetColorFile error: %v", err)
 	}
+
 	g_Logger.Errorln("11111111")
-	g_Logger.Errorln("2222222")
+	g_Logger.Warnln("2222222")
 	g_Logger.Infoln("3333333")
 }

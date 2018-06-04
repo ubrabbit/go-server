@@ -14,7 +14,7 @@ var (
 func NewLog(name string, filepath string) *golog.Logger {
 	obj := golog.New(name)
 	if name != "" {
-		golog.SetOutputLogger(name, filepath)
+		golog.SetOutputToFile(name, filepath)
 	}
 	return obj
 }
@@ -24,13 +24,6 @@ func formatLogTime() string {
 	//2006-01-02 15:04:05是go的时间原点
 	newFormat := currentTime.Format("[2006-01-02 15:04:05] ")
 	return newFormat
-}
-
-func LogFatal(v ...interface{}) {
-	if g_LoggerError == nil {
-		g_LoggerError = golog.New("error")
-	}
-	g_LoggerError.Fatalln(v...)
 }
 
 func LogError(v ...interface{}) {
@@ -43,6 +36,7 @@ func LogError(v ...interface{}) {
 func LogInfo(v ...interface{}) {
 	if g_LoggerInfo == nil {
 		g_LoggerInfo = golog.New("info")
+		golog.SetLevelByString("info", "info222")
 	}
 	g_LoggerInfo.Infoln(v...)
 }
