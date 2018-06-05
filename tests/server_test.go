@@ -2,8 +2,12 @@ package tests
 
 import (
 	"fmt"
-	. "github.com/ubrabbit/go-server/server"
 	"testing"
+)
+
+import (
+	proto "github.com/ubrabbit/go-server/proto"
+	. "github.com/ubrabbit/go-server/server"
 )
 
 var Address = "127.0.0.1:3832"
@@ -19,5 +23,14 @@ func TestClient(t *testing.T) {
 	fmt.Printf("\n\n=====================  TestClient  =====================\n")
 
 	InitClientPool()
-	NewTcpClient("client", Address)
+	a := "hello"
+	b := "aaa"
+	c := "bbb"
+	obj := NewTcpClient("client", Address)
+	msg := proto.C2SConnect{
+		Hello:    &a,
+		Account:  &b,
+		Password: &c,
+	}
+	obj.PacketSend(msg)
 }

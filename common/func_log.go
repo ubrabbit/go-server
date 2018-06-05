@@ -36,7 +36,6 @@ func LogError(v ...interface{}) {
 func LogInfo(v ...interface{}) {
 	if g_LoggerInfo == nil {
 		g_LoggerInfo = golog.New("info")
-		golog.SetLevelByString("info", "info222")
 	}
 	g_LoggerInfo.Infoln(v...)
 }

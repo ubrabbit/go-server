@@ -12,6 +12,10 @@ import (
 	_ "github.com/davyxu/cellnet/proc/tcp"
 )
 
+import (
+	. "github.com/ubrabbit/go-server/common"
+)
+
 type ClientUnit struct {
 	sync.Mutex
 	Name    string
@@ -20,7 +24,7 @@ type ClientUnit struct {
 	Peer    cellnet.GenericPeer
 }
 
-func NewTcpClient(name string, address string) {
+func NewTcpClient(name string, address string) *ClientUnit {
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的连接器，名称为client，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -38,6 +42,7 @@ func NewTcpClient(name string, address string) {
 	pool.AddClient(obj)
 
 	obj.Run()
+	return obj
 }
 
 func (self *ClientUnit) Run() {
@@ -49,4 +54,31 @@ func (self *ClientUnit) Run() {
 
 func (self *ClientUnit) Disconnect() {
 	self.Peer.Stop()
+}
+
+func (self *ClientUnit) OnConnectSucc(ev cellnet.Event) {
+
+}
+
+func (self *ClientUnit) OnDisconnect(ev cellnet.Event) {
+
+}
+
+func (self *ClientUnit) PacketSend(msg interface{}) {
+	self.Peer.(interface {
+		Session() cellnet.Session
+	}).Session().Send(msg)
+}
+
+func (self *ClientUnit) PacketRecv(ev cellnet.Event) {
+	switch ev.Message().(type) {
+	case *cellnet.SessionConnected:
+		LogInfo("client connected")
+		self.OnConnectSucc(ev)
+	case *cellnet.SessionClosed:
+		LogInfo("client error")
+		self.OnDisconnect(ev)
+	default:
+		onClientCommand(ev)
+	}
 }
