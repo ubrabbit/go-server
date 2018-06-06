@@ -27,12 +27,21 @@ func ReadConsole(callback func(string)) {
 	}
 }
 
+func CustomOnCommand(c *ConnectUnit, msg interface{}) {
+	switch msg := msg.(type) {
+	case *proto.TestChatACK:
+		fmt.Println("custom command: ", msg)
+	default:
+		fmt.Println("invalid command: ", msg)
+	}
+}
+
 func main() {
 	fmt.Println("start client:")
 
 	InitConnectPool()
 	obj := NewTcpConnect("client", Address)
-
+	obj.SetCommand(CustomOnCommand)
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)
