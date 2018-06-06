@@ -30,8 +30,8 @@ func ReadConsole(callback func(string)) {
 func main() {
 	fmt.Println("start client:")
 
-	InitClientPool()
-	obj := NewTcpClient("client", Address)
+	InitConnectPool()
+	obj := NewTcpConnect("client", Address)
 
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {

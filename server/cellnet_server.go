@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net"
 	"sync"
 )
 
@@ -23,6 +24,9 @@ type ServerUnit struct {
 	Address string
 	Queue   cellnet.EventQueue
 	Peer    cellnet.GenericPeer
+	Pool    map[int64]*ClientUnit
+
+	onCommand func(*ClientUnit, interface{})
 }
 
 func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
@@ -36,9 +40,11 @@ func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
 	obj.Address = address
 	obj.Queue = queue
 	obj.Peer = p
+	obj.Pool = make(map[int64]*ClientUnit, 0)
+	obj.onCommand = nil
 
 	pool := GetServerPool()
-	pool.AddServer(obj)
+	pool.Add(obj)
 
 	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
 	if is_block {
@@ -62,40 +68,80 @@ func (self *ServerUnit) Disconnect() {
 	self.Peer.Stop()
 }
 
-func (self *ServerUnit) OnNewConnect(ev cellnet.Event) {
+func (self *ServerUnit) GetClient(sessionID int64) *ClientUnit {
+	self.Lock()
+	defer self.Unlock()
 
+	obj, ok := self.Pool[sessionID]
+	if ok {
+		return obj
+	}
+	return nil
+}
+
+func (self *ServerUnit) SetCommand(f func(*ClientUnit, interface{})) {
+	self.Lock()
+	defer self.Unlock()
+
+	self.onCommand = f
+}
+
+func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
+	LogInfo("OnConnectSucc:  ", ev.Session().Raw().(net.Conn).RemoteAddr().String())
+
+	self.Lock()
+	defer self.Unlock()
+
+	client := NewTcpClient(ev)
+	client.Parent = self
+	self.Pool[client.SessionID()] = client
 }
 
 func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
+	LogInfo("OnDisconnect:  ", ev.Session().ID())
 
+	self.Lock()
+	defer self.Unlock()
+
+	sessionID := ev.Session().ID()
+	client, ok := self.Pool[sessionID]
+	if ok {
+		delete(self.Pool, sessionID)
+		client.OnDisconnect()
+	}
 }
 
 func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
-	LogInfo("PacketRecv")
-	switch ev.Message().(type) {
+	LogInfo("PacketRecv1:  ", ev.Session().ID())
+
+	msg := ev.Message()
+	switch msg.(type) {
 	// 有新的连接
 	case *cellnet.SessionAccepted:
-		LogInfo("server accepted")
-		self.OnNewConnect(ev)
+		LogInfo("server accepted", ev.Session().ID())
+		self.OnConnectSucc(ev)
 	// 有连接断开
 	case *cellnet.SessionClosed:
 		LogInfo("session closed: ", ev.Session().ID())
 		self.OnDisconnect(ev)
 	default:
-		onServerCommand(ev)
+		client := self.GetClient(ev.Session().ID())
+		if client == nil {
+			LogError("invalid connect: ", ev.Session().ID())
+		} else {
+			if self.onCommand != nil {
+				self.onCommand(client, msg)
+			} else {
+				onServerCommand(client, msg)
+			}
+		}
 	}
-}
-
-func (self *ServerUnit) PacketSend(msg interface{}) {
-	self.Peer.(interface {
-		Session() cellnet.Session
-	}).Session().Send(&msg)
 }
 
 func (self *ServerUnit) Broadcast(msg interface{}) {
 	self.Peer.(cellnet.SessionAccessor).VisitSession(
 		func(ses cellnet.Session) bool {
-			ses.Send(&msg)
+			ses.Send(msg)
 			return true
 		})
 }
