@@ -123,20 +123,21 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 
 func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
 	//LogInfo("PacketRecv:  ", ev.Session().ID())
+	sessionID := ev.Session().ID()
 	msg := ev.Message()
 	switch msg.(type) {
 	// 有新的连接
 	case *cellnet.SessionAccepted:
-		LogInfo("Server Accepted", ev.Session().ID())
+		LogInfo("Server Accepted: ", sessionID)
 		self.OnConnectSucc(ev)
 	// 有连接断开
 	case *cellnet.SessionClosed:
-		LogInfo("Session Closed: ", ev.Session().ID())
+		LogInfo("Session Closed: ", sessionID)
 		self.OnDisconnect(ev)
 	default:
-		client := self.GetClient(ev.Session().ID())
+		client := self.GetClient(sessionID)
 		if client == nil {
-			LogError(self, "Invalid Command: ", ev.Session().ID())
+			LogError(self, "Invalid Command: ", sessionID)
 		} else {
 			if self.onCommand != nil {
 				self.onCommand(client, msg)

@@ -24,12 +24,13 @@ type ConnectUnit struct {
 	Queue   cellnet.EventQueue
 	Peer    cellnet.GenericPeer
 
-	sessionID int64
-	objectID  int64
-	onCommand func(*ConnectUnit, interface{})
+	sessionID     int64
+	objectID      int64
+	waitConnected chan bool
+	onCommand     func(*ConnectUnit, interface{})
 }
 
-func NewTcpConnect(name string, address string) *ConnectUnit {
+func NewTcpConnect(name string, address string, f func(*ConnectUnit, interface{})) *ConnectUnit {
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -44,13 +45,18 @@ func NewTcpConnect(name string, address string) *ConnectUnit {
 	obj.Peer = p
 	obj.objectID = newObjectID()
 	obj.sessionID = 0
-	obj.onCommand = nil
+	obj.onCommand = f
+	obj.waitConnected = make(chan bool, 1)
 
 	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
 	// 开始发起到服务器的连接
 	obj.Peer.Start()
 	// 事件队列开始循环
 	obj.Queue.StartLoop()
+
+	//等待连接成功再返回
+	<-obj.waitConnected
+	obj.waitConnected = nil
 	return obj
 }
 
@@ -101,6 +107,9 @@ func (self *ConnectUnit) OnConnectSucc(ev cellnet.Event) {
 	self.sessionID = self.Session().ID()
 	pool := GetConnectPool()
 	pool.Add(self)
+
+	//连接成功，取消阻塞
+	self.waitConnected <- true
 }
 
 func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {

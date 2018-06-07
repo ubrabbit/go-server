@@ -6,8 +6,7 @@ import (
 )
 
 func onConnectCommand(c *ConnectUnit, msg interface{}) {
-	LogInfo("onConnectCommand:  ", c.ObjectID())
-
+	//LogInfo("onConnectCommand:  ", c.ObjectID())
 	switch msg := msg.(type) {
 	case *proto.TestChatACK:
 		LogInfo("TestChatACK:  ", msg)
