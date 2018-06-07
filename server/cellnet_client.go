@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net"
 	"sync"
 )
@@ -9,13 +10,18 @@ import (
 	"github.com/davyxu/cellnet"
 )
 
+import (
+	. "github.com/ubrabbit/go-server/common"
+)
+
 type ClientUnit struct {
 	sync.Mutex
 	Address string
 	Parent  *ServerUnit
 
-	objectID int64
-	session  cellnet.Session
+	objectID  int64
+	sessionID int64
+	session   cellnet.Session
 }
 
 func NewTcpClient(ev cellnet.Event) *ClientUnit {
@@ -23,8 +29,13 @@ func NewTcpClient(ev cellnet.Event) *ClientUnit {
 	obj.Parent = nil
 	obj.Address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
 	obj.session = ev.Session()
+	obj.sessionID = ev.Session().ID()
 	obj.objectID = newObjectID()
 	return obj
+}
+
+func (self *ClientUnit) String() string {
+	return fmt.Sprintf("[Client][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
 }
 
 func (self *ClientUnit) ObjectID() int64 {
@@ -36,7 +47,7 @@ func (self *ClientUnit) Session() cellnet.Session {
 }
 
 func (self *ClientUnit) SessionID() int64 {
-	return self.session.ID()
+	return self.sessionID
 }
 
 func (self *ClientUnit) PacketSend(msg interface{}) {
@@ -46,6 +57,10 @@ func (self *ClientUnit) PacketSend(msg interface{}) {
 	self.Session().Send(&msg)
 }
 
-func (self *ClientUnit) OnDisconnect() {
+func (self *ClientUnit) OnConnectSucc() {
+	LogInfo(self, "Connected")
+}
 
+func (self *ClientUnit) OnDisconnect() {
+	LogInfo(self, "Disconnected")
 }

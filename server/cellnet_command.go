@@ -26,14 +26,13 @@ func onConnectCommand(c *ConnectUnit, msg interface{}) {
 }
 
 func onServerCommand(c *ClientUnit, msg interface{}) {
-	LogInfo("onServerCommand:  ", c.ObjectID())
-
+	//LogInfo("onServerCommand:  ", c.ObjectID())
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
 		LogInfo("TestChatREQ")
 		msg2 := msg.Content
 		fmt.Println("msg:  ", msg2)
-		c.Parent.Broadcast(&proto.TestChatACK{Content: "respond222", Id: c.SessionID()})
+		c.Parent.Broadcast(&proto.TestChatACK{Content: "respond:  " + msg2, Id: c.SessionID()})
 	case *proto.C2SConnect:
 		LogInfo("C2SConnect")
 		fmt.Println("msg:  ", msg)

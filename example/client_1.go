@@ -43,17 +43,18 @@ func main() {
 	obj := NewTcpConnect("client", Address)
 	obj.SetCommand(CustomOnCommand)
 
-	msg := proto.C2SConnect{Hello: "aaaaabbbbb", Account: "ubrabbit", Password: "123456"}
-	fmt.Println("msg: ", msg)
-	obj.PacketSend(msg)
-
+	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)
-		obj.PacketSend(proto.TestChatREQ{
+		if str == "close" {
+			obj.Disconnect()
+			return
+		}
+		obj.PacketSend(&proto.TestChatREQ{
 			Content: str,
 		})
-
+		obj.PacketSend(&proto.C2SConnect{Hello: "bbbbbbbbb", Account: "ubrabbit", Password: "123456"})
 	})
 
 }

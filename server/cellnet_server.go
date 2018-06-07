@@ -1,7 +1,7 @@
 package server
 
 import (
-	"net"
+	"fmt"
 	"sync"
 )
 
@@ -26,6 +26,7 @@ type ServerUnit struct {
 	Peer    cellnet.GenericPeer
 	Pool    map[int64]*ClientUnit
 
+	objectID  int64
 	onCommand func(*ClientUnit, interface{})
 }
 
@@ -42,6 +43,7 @@ func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
 	obj.Peer = p
 	obj.Pool = make(map[int64]*ClientUnit, 0)
 	obj.onCommand = nil
+	obj.objectID = newObjectID()
 
 	pool := GetServerPool()
 	pool.Add(obj)
@@ -55,6 +57,11 @@ func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
 	return obj
 }
 
+func (self *ServerUnit) String() string {
+	return fmt.Sprintf("[Server][%s][%s]-%d ", self.Address, self.Name, self.objectID)
+}
+
+//此函数运行失败就直接让它崩溃
 func (self *ServerUnit) Run() {
 	// 开始侦听
 	self.Peer.Start()
@@ -65,6 +72,12 @@ func (self *ServerUnit) Run() {
 }
 
 func (self *ServerUnit) Disconnect() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError(self, " Disconnect Error: ", err)
+		}
+	}()
 	self.Peer.Stop()
 }
 
@@ -87,19 +100,16 @@ func (self *ServerUnit) SetCommand(f func(*ClientUnit, interface{})) {
 }
 
 func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
-	LogInfo("OnConnectSucc:  ", ev.Session().Raw().(net.Conn).RemoteAddr().String())
-
 	self.Lock()
 	defer self.Unlock()
 
 	client := NewTcpClient(ev)
 	client.Parent = self
 	self.Pool[client.SessionID()] = client
+	client.OnConnectSucc()
 }
 
 func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
-	LogInfo("OnDisconnect:  ", ev.Session().ID())
-
 	self.Lock()
 	defer self.Unlock()
 
@@ -112,22 +122,21 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 }
 
 func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
-	LogInfo("PacketRecv1:  ", ev.Session().ID())
-
+	//LogInfo("PacketRecv:  ", ev.Session().ID())
 	msg := ev.Message()
 	switch msg.(type) {
 	// 有新的连接
 	case *cellnet.SessionAccepted:
-		LogInfo("server accepted", ev.Session().ID())
+		LogInfo("Server Accepted", ev.Session().ID())
 		self.OnConnectSucc(ev)
 	// 有连接断开
 	case *cellnet.SessionClosed:
-		LogInfo("session closed: ", ev.Session().ID())
+		LogInfo("Session Closed: ", ev.Session().ID())
 		self.OnDisconnect(ev)
 	default:
 		client := self.GetClient(ev.Session().ID())
 		if client == nil {
-			LogError("invalid connect: ", ev.Session().ID())
+			LogError(self, "Invalid Command: ", ev.Session().ID())
 		} else {
 			if self.onCommand != nil {
 				self.onCommand(client, msg)
