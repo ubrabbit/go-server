@@ -36,11 +36,15 @@ func CustomOnCommand(c *ConnectUnit, msg interface{}) {
 	}
 }
 
+func CustomEventTrigger(name string, args ...interface{}) {
+	fmt.Println("CustomEventCommand:  ", name, args)
+}
+
 func main() {
 	fmt.Println("start client:")
 
 	InitConnectPool()
-	obj := NewTcpConnect("client", Address, CustomOnCommand)
+	obj := NewTcpConnect("client", Address, CustomOnCommand, CustomEventTrigger)
 	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {

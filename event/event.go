@@ -9,11 +9,17 @@ import (
 	. "github.com/ubrabbit/go-server/common"
 )
 
+const (
+	EventAdd     = 1 //添加事件
+	EventRemove  = 2 //删除事件
+	EventExecute = 3 //触发事件
+)
+
+const (
+	g_DefaultQueueLen = 1000 //默认队列长度
+)
+
 var (
-	g_EventAdd               = 1
-	g_EventRemove            = 2
-	g_EventCmd               = 3
-	g_SignalLen              = 1000
 	g_GlobalEvent *EventPool = nil
 )
 
@@ -24,9 +30,9 @@ type EventPool struct {
 	eventPool   map[int]interface{}
 }
 
-func NewEventPool() *EventPool {
+func NewEventPool(queueLen int) *EventPool {
 	obj := new(EventPool)
-	obj.signalQueue = make(chan *EventSignal, g_SignalLen)
+	obj.signalQueue = make(chan *EventSignal, queueLen)
 	obj.listenQueue = make(map[string][]int, 0)
 	obj.eventPool = make(map[int]interface{}, 0)
 	go obj.eventListener()
@@ -49,6 +55,18 @@ func (self *EventSignal) String() string {
 	return fmt.Sprintf("[Signal][%s]-%d", self.Name, self.Type)
 }
 
+func (self *EventPool) AddEvent(obj interface{}) bool {
+	return self.pushEvent("AddEvent", EventAdd, obj)
+}
+
+func (self *EventPool) RemoveEvent(id int) bool {
+	return self.pushEvent("RemoveEvent", EventRemove, id)
+}
+
+func (self *EventPool) TriggerEvent(name string, args ...interface{}) {
+	self.pushEvent(name, EventExecute, args...)
+}
+
 func (self *EventPool) pushEvent(name string, t int, args ...interface{}) bool {
 	self.signalQueue <- &EventSignal{Name: name, Type: t, Args: args}
 	return true
@@ -68,21 +86,21 @@ func (self *EventPool) eventListener() {
 		}()
 
 		switch obj.Type {
-		case g_EventAdd:
+		case EventAdd:
 			event := obj.Args[0]
-			self.addEvent(event)
-		case g_EventRemove:
+			self.add(event)
+		case EventRemove:
 			id := obj.Args[0].(int)
-			self.removeEvent(id)
-		case g_EventCmd:
-			self.triggerEvent(obj.Name, obj.Args...)
+			self.remove(id)
+		case EventExecute:
+			self.trigger(obj.Name, obj.Args...)
 		default:
 			LogError("Invalid Event Type: ", obj.Type)
 		}
 	}
 }
 
-func (self *EventPool) addEvent(obj interface{}) bool {
+func (self *EventPool) add(obj interface{}) bool {
 	self.Lock()
 	defer self.Unlock()
 
@@ -97,7 +115,7 @@ func (self *EventPool) addEvent(obj interface{}) bool {
 	return false
 }
 
-func (self *EventPool) removeEvent(id int) bool {
+func (self *EventPool) remove(id int) bool {
 	self.Lock()
 	defer self.Unlock()
 
@@ -119,9 +137,10 @@ func (self *EventPool) removeEvent(id int) bool {
 	return true
 }
 
-func (self *EventPool) triggerEvent(name string, args ...interface{}) {
+func (self *EventPool) trigger(name string, args ...interface{}) {
 	self.Lock()
 	defer self.Unlock()
+
 	list, exists := self.listenQueue[name]
 	if !exists {
 		LogError("Event Not Exists:  ", name)
@@ -129,15 +148,15 @@ func (self *EventPool) triggerEvent(name string, args ...interface{}) {
 	}
 	for _, id := range list {
 		event := self.eventPool[id]
-		executeEvent(event, args...)
+		execute(event, args...)
 	}
 }
 
-func executeEvent(event interface{}, args ...interface{}) {
+func execute(event interface{}, args ...interface{}) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError("executeEvent Error:  ", event.(EventFunc).Name(), err)
+			LogError("executeEvent Error:  ", err)
 		}
 	}()
 	event.(EventFunc).Execute(args...)
@@ -148,18 +167,18 @@ func getEventPool() *EventPool {
 }
 
 func AddEvent(obj interface{}) bool {
-	return getEventPool().pushEvent("AddEvent", g_EventAdd, obj)
+	return getEventPool().AddEvent(obj)
 }
 
 func RemoveEvent(id int) bool {
-	return getEventPool().pushEvent("RemoveEvent", g_EventRemove, id)
+	return getEventPool().RemoveEvent(id)
 }
 
 func TriggerEvent(name string, args ...interface{}) {
-	getEventPool().pushEvent(name, g_EventCmd, args...)
+	getEventPool().TriggerEvent(name, args...)
 }
 
 func InitEvent() {
 	fmt.Println("InitEvent")
-	g_GlobalEvent = NewEventPool()
+	g_GlobalEvent = NewEventPool(g_DefaultQueueLen)
 }

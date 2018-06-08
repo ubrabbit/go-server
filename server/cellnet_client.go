@@ -10,9 +10,12 @@ import (
 	"github.com/davyxu/cellnet"
 )
 
-import (
-	. "github.com/ubrabbit/go-server/common"
-)
+type Client interface {
+	ObjectID() int64
+	Session()
+	SessionID()
+	PacketSend(interface{})
+}
 
 type ClientUnit struct {
 	sync.Mutex
@@ -55,12 +58,4 @@ func (self *ClientUnit) PacketSend(msg interface{}) {
 	defer self.Unlock()
 
 	self.Session().Send(&msg)
-}
-
-func (self *ClientUnit) OnConnectSucc() {
-	LogInfo(self, "Connected")
-}
-
-func (self *ClientUnit) OnDisconnect() {
-	LogInfo(self, "Disconnected")
 }

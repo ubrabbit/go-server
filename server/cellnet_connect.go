@@ -28,9 +28,10 @@ type ConnectUnit struct {
 	objectID      int64
 	waitConnected chan bool
 	onCommand     func(*ConnectUnit, interface{})
+	eventTrigger  func(string, ...interface{})
 }
 
-func NewTcpConnect(name string, address string, f func(*ConnectUnit, interface{})) *ConnectUnit {
+func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{}), f2 func(string, ...interface{})) *ConnectUnit {
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -45,7 +46,8 @@ func NewTcpConnect(name string, address string, f func(*ConnectUnit, interface{}
 	obj.Peer = p
 	obj.objectID = newObjectID()
 	obj.sessionID = 0
-	obj.onCommand = f
+	obj.onCommand = f1
+	obj.eventTrigger = f2
 	obj.waitConnected = make(chan bool, 1)
 
 	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
@@ -80,13 +82,6 @@ func (self *ConnectUnit) SessionID() int64 {
 	return self.sessionID
 }
 
-func (self *ConnectUnit) SetCommand(f func(*ConnectUnit, interface{})) {
-	self.Lock()
-	defer self.Unlock()
-
-	self.onCommand = f
-}
-
 func (self *ConnectUnit) Disconnect() {
 	self.Lock()
 	defer func() {
@@ -110,6 +105,9 @@ func (self *ConnectUnit) OnConnectSucc(ev cellnet.Event) {
 
 	//连接成功，取消阻塞
 	self.waitConnected <- true
+	if self.eventTrigger != nil {
+		self.eventTrigger("Connect", self.Address)
+	}
 }
 
 func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {
@@ -119,6 +117,10 @@ func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {
 	LogInfo(self, "Disconnected")
 	pool := GetConnectPool()
 	pool.Remove(self.SessionID())
+
+	if self.eventTrigger != nil {
+		self.eventTrigger("DisConnect", self.Address)
+	}
 }
 
 func (self *ConnectUnit) PacketSend(msg interface{}) {
@@ -148,10 +150,6 @@ func (self *ConnectUnit) PacketRecv(ev cellnet.Event) {
 	case *cellnet.SessionClosed:
 		self.OnDisconnect(ev)
 	default:
-		if self.onCommand != nil {
-			self.onCommand(self, msg)
-		} else {
-			onConnectCommand(self, msg)
-		}
+		self.onCommand(self, msg)
 	}
 }

@@ -26,11 +26,12 @@ type ServerUnit struct {
 	Peer    cellnet.GenericPeer
 	Pool    map[int64]*ClientUnit
 
-	objectID  int64
-	onCommand func(*ClientUnit, interface{})
+	objectID     int64
+	onCommand    func(*ClientUnit, interface{})
+	eventTrigger func(*ClientUnit, string, ...interface{})
 }
 
-func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
+func NewTcpServer(name string, address string, is_block bool, f1 func(*ClientUnit, interface{}), f2 func(*ClientUnit, string, ...interface{})) *ServerUnit {
 	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -42,7 +43,8 @@ func NewTcpServer(name string, address string, is_block bool) *ServerUnit {
 	obj.Queue = queue
 	obj.Peer = p
 	obj.Pool = make(map[int64]*ClientUnit, 0)
-	obj.onCommand = nil
+	obj.onCommand = f1
+	obj.eventTrigger = f2
 	obj.objectID = newObjectID()
 
 	pool := GetServerPool()
@@ -92,13 +94,6 @@ func (self *ServerUnit) GetClient(sessionID int64) *ClientUnit {
 	return nil
 }
 
-func (self *ServerUnit) SetCommand(f func(*ClientUnit, interface{})) {
-	self.Lock()
-	defer self.Unlock()
-
-	self.onCommand = f
-}
-
 func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
 	self.Lock()
 	defer self.Unlock()
@@ -106,7 +101,11 @@ func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
 	client := NewTcpClient(ev)
 	client.Parent = self
 	self.Pool[client.SessionID()] = client
-	client.OnConnectSucc()
+
+	LogInfo(client, "Connected")
+	if self.eventTrigger != nil {
+		self.eventTrigger(client, "Connect", client.Address)
+	}
 }
 
 func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
@@ -117,33 +116,31 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 	client, ok := self.Pool[sessionID]
 	if ok {
 		delete(self.Pool, sessionID)
-		client.OnDisconnect()
+		LogInfo(client, "Disconnected")
+		if self.eventTrigger != nil {
+			self.eventTrigger(client, "DisConnect", client.Address)
+		}
 	}
 }
 
 func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
 	//LogInfo("PacketRecv:  ", ev.Session().ID())
-	sessionID := ev.Session().ID()
 	msg := ev.Message()
 	switch msg.(type) {
 	// 有新的连接
 	case *cellnet.SessionAccepted:
-		LogInfo("Server Accepted: ", sessionID)
+		LogInfo("Server Accepted", ev.Session().ID())
 		self.OnConnectSucc(ev)
 	// 有连接断开
 	case *cellnet.SessionClosed:
-		LogInfo("Session Closed: ", sessionID)
+		LogInfo("Session Closed: ", ev.Session().ID())
 		self.OnDisconnect(ev)
 	default:
-		client := self.GetClient(sessionID)
+		client := self.GetClient(ev.Session().ID())
 		if client == nil {
-			LogError(self, "Invalid Command: ", sessionID)
+			LogError(self, "Invalid Client: ", ev.Session().ID())
 		} else {
-			if self.onCommand != nil {
-				self.onCommand(client, msg)
-			} else {
-				onServerCommand(client, msg)
-			}
+			self.onCommand(client, msg)
 		}
 	}
 }
