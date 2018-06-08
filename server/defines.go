@@ -29,7 +29,7 @@ func newObjectID() int64 {
 
 func InitConnectPool() {
 	g_ConnectPool = new(ConnectPool)
-	g_ConnectPool.Pool = make(map[int64]*ConnectUnit, 0)
+	g_ConnectPool.Pool = make(map[int64]*Connect, 0)
 }
 
 func InitServerPool() {

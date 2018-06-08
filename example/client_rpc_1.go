@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -13,6 +14,9 @@ import (
 )
 
 var Address = "127.0.0.1:3832"
+
+type ConnectCmd struct {
+}
 
 func ReadConsole(callback func(string)) {
 	for {
@@ -27,31 +31,36 @@ func ReadConsole(callback func(string)) {
 	}
 }
 
-func CustomOnCommand(c *ConnectUnit, msg interface{}) {
+func (self *ConnectCmd) OnProtoCommand(c *Connect, msg interface{}) {
 	switch msg := msg.(type) {
 	case *proto.TestChatACK:
 		fmt.Println("custom command: ", msg)
 	default:
-		fmt.Println("invalid command: ", msg)
+		fmt.Println("invalid command: ", reflect.TypeOf(msg).Elem())
 	}
 }
 
-func CustomEventTrigger(c *ConnectUnit, name string, args ...interface{}) {
+func (self *ConnectCmd) OnEventTrigger(c *Connect, name string, args ...interface{}) {
 	fmt.Println("CustomEventCommand:  ", c, name, args)
+}
+
+func RpcCallBack(c *Connect, msg interface{}, err error) {
+	fmt.Println("RpcCallBack:   ", msg, err)
 }
 
 func main() {
 	fmt.Println("start client:")
 
 	InitConnectPool()
-	obj := NewTcpConnect("client", Address, CustomOnCommand, CustomEventTrigger)
+	handle := &ConnectCmd{}
+	obj := NewTcpConnect("client", Address, handle)
 
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)
 		obj.RpcCall(&proto.TestChatREQ{
 			Content: str,
-		}, nil, 3)
+		}, RpcCallBack, 5)
 	})
 
 }

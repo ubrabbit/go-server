@@ -19,7 +19,12 @@ import (
 	. "github.com/ubrabbit/go-server/common"
 )
 
-type ConnectUnit struct {
+type ConnectHandle interface {
+	OnProtoCommand(*Connect, interface{})
+	OnEventTrigger(*Connect, string, ...interface{})
+}
+
+type Connect struct {
 	sync.Mutex
 	Name    string
 	Address string
@@ -29,11 +34,11 @@ type ConnectUnit struct {
 	sessionID     int64
 	objectID      int64
 	waitConnected chan bool
-	onCommand     func(*ConnectUnit, interface{})
-	eventTrigger  func(*ConnectUnit, string, ...interface{})
+
+	connectHandle interface{}
 }
 
-func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{}), f2 func(*ConnectUnit, string, ...interface{})) *ConnectUnit {
+func NewTcpConnect(name string, address string, handle interface{}) *Connect {
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -41,15 +46,14 @@ func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{
 	p := peer.NewGenericPeer("tcp.Connector", name, address, queue)
 	//p.SetReconnectDuration(1)
 
-	obj := new(ConnectUnit)
+	obj := new(Connect)
 	obj.Name = name
 	obj.Address = address
 	obj.Queue = queue
 	obj.Peer = p
 	obj.objectID = newObjectID()
 	obj.sessionID = 0
-	obj.onCommand = f1
-	obj.eventTrigger = f2
+	obj.connectHandle = handle
 	obj.waitConnected = make(chan bool, 1)
 
 	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
@@ -65,26 +69,26 @@ func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{
 }
 
 //__repr__
-func (self *ConnectUnit) String() string {
+func (self *Connect) String() string {
 	return fmt.Sprintf("[Connect][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
 }
 
-func (self *ConnectUnit) ObjectID() int64 {
+func (self *Connect) ObjectID() int64 {
 	return self.objectID
 }
 
-func (self *ConnectUnit) Session() cellnet.Session {
+func (self *Connect) Session() cellnet.Session {
 	return self.Peer.(interface {
 		Session() cellnet.Session
 	}).Session()
 }
 
 //sessionID在断线后通过Session获取不到
-func (self *ConnectUnit) SessionID() int64 {
+func (self *Connect) SessionID() int64 {
 	return self.sessionID
 }
 
-func (self *ConnectUnit) Disconnect() {
+func (self *Connect) Disconnect() {
 	self.Lock()
 	defer func() {
 		err := recover()
@@ -96,7 +100,7 @@ func (self *ConnectUnit) Disconnect() {
 	self.Peer.Stop()
 }
 
-func (self *ConnectUnit) OnConnectSucc(ev cellnet.Event) {
+func (self *Connect) OnConnectSucc(ev cellnet.Event) {
 	self.Lock()
 	defer self.Unlock()
 
@@ -107,12 +111,10 @@ func (self *ConnectUnit) OnConnectSucc(ev cellnet.Event) {
 
 	//连接成功，取消阻塞
 	self.waitConnected <- true
-	if self.eventTrigger != nil {
-		self.eventTrigger(self, "Connect")
-	}
+	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "Connect")
 }
 
-func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {
+func (self *Connect) OnDisconnect(ev cellnet.Event) {
 	self.Lock()
 	defer self.Unlock()
 
@@ -120,12 +122,13 @@ func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {
 	pool := GetConnectPool()
 	pool.Remove(self.SessionID())
 
-	if self.eventTrigger != nil {
-		self.eventTrigger(self, "DisConnect")
-	}
+	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "DisConnect")
 }
 
-func (self *ConnectUnit) PacketSend(msg interface{}) {
+func (self *Connect) OnRpcAck(ev cellnet.Event) {
+}
+
+func (self *Connect) PacketSend(msg interface{}) {
 	self.Lock()
 	defer func() {
 		err := recover()
@@ -137,7 +140,7 @@ func (self *ConnectUnit) PacketSend(msg interface{}) {
 	self.Session().Send(msg)
 }
 
-func (self *ConnectUnit) PacketRecv(ev cellnet.Event) {
+func (self *Connect) PacketRecv(ev cellnet.Event) {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -145,18 +148,21 @@ func (self *ConnectUnit) PacketRecv(ev cellnet.Event) {
 		}
 	}()
 
+	LogInfo("PacketRecv")
 	msg := ev.Message()
 	switch msg.(type) {
 	case *cellnet.SessionConnected:
 		self.OnConnectSucc(ev)
 	case *cellnet.SessionClosed:
 		self.OnDisconnect(ev)
+	case *rpc.RemoteCallACK:
+		self.OnRpcAck(ev)
 	default:
-		self.onCommand(self, msg)
+		self.connectHandle.(ConnectHandle).OnProtoCommand(self, msg)
 	}
 }
 
-func (self *ConnectUnit) RpcCall(msg interface{}, callback func(*ConnectUnit, interface{}, error), timeout int) error {
+func (self *Connect) RpcCall(msg interface{}, callback func(*Connect, interface{}, error), timeout int) error {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -165,6 +171,7 @@ func (self *ConnectUnit) RpcCall(msg interface{}, callback func(*ConnectUnit, in
 	}()
 	if callback == nil {
 		//异步
+		LogInfo("rpc.Call")
 		rpc.Call(self.Peer, msg, time.Duration(timeout)*time.Second,
 			func(raw interface{}) {
 				switch result := raw.(type) {
@@ -174,6 +181,7 @@ func (self *ConnectUnit) RpcCall(msg interface{}, callback func(*ConnectUnit, in
 			})
 	} else {
 		//同步
+		LogInfo("rpc.CallSync")
 		ret, err := rpc.CallSync(self.Peer, msg, time.Duration(timeout)*time.Second)
 		callback(self, ret, err)
 		return err

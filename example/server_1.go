@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 import (
@@ -12,7 +13,10 @@ import (
 
 var Address = "127.0.0.1:3832"
 
-func onServerCommand(c *ClientUnit, msg interface{}) {
+type ClientCmd struct {
+}
+
+func (self *ClientCmd) OnProtoCommand(c *Client, msg interface{}) {
 	//LogInfo("onServerCommand:  ", c.ObjectID())
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
@@ -26,7 +30,14 @@ func onServerCommand(c *ClientUnit, msg interface{}) {
 	}
 }
 
-func onEventTrigger(c *ClientUnit, name string, args ...interface{}) {
+func (self *ClientCmd) OnRpcCommand(c *Client, msg interface{}) (interface{}, error) {
+	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand")
+	time.Sleep(1 * time.Second)
+	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand Ack")
+	return proto.TestChatREQ{Content: "Rpc_Respond"}, nil
+}
+
+func (self *ClientCmd) OnEventTrigger(c *Client, name string, args ...interface{}) {
 	LogInfo(c, " EventTrigger: ", name, args)
 }
 
@@ -34,5 +45,6 @@ func main() {
 	fmt.Println("start server:")
 
 	InitServerPool()
-	NewTcpServer("server", Address, true, onServerCommand, onEventTrigger)
+	handle := &ClientCmd{}
+	NewTcpServer("server", Address, true, handle)
 }

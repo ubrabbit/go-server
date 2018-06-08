@@ -19,20 +19,25 @@ import (
 	. "github.com/ubrabbit/go-server/common"
 )
 
+type ClientHandle interface {
+	OnProtoCommand(*Client, interface{})
+	OnRpcCommand(*Client, interface{}) (interface{}, error)
+	OnEventTrigger(*Client, string, ...interface{})
+}
+
 type ServerUnit struct {
 	sync.Mutex
 	Name    string
 	Address string
 	Queue   cellnet.EventQueue
 	Peer    cellnet.GenericPeer
-	Pool    map[int64]*ClientUnit
+	Pool    map[int64]*Client
 
 	objectID     int64
-	onCommand    func(*ClientUnit, interface{})
-	eventTrigger func(*ClientUnit, string, ...interface{})
+	clientHandle interface{}
 }
 
-func NewTcpServer(name string, address string, is_block bool, f1 func(*ClientUnit, interface{}), f2 func(*ClientUnit, string, ...interface{})) *ServerUnit {
+func NewTcpServer(name string, address string, is_block bool, handle interface{}) *ServerUnit {
 	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -43,9 +48,8 @@ func NewTcpServer(name string, address string, is_block bool, f1 func(*ClientUni
 	obj.Address = address
 	obj.Queue = queue
 	obj.Peer = p
-	obj.Pool = make(map[int64]*ClientUnit, 0)
-	obj.onCommand = f1
-	obj.eventTrigger = f2
+	obj.Pool = make(map[int64]*Client, 0)
+	obj.clientHandle = handle
 	obj.objectID = newObjectID()
 
 	pool := GetServerPool()
@@ -84,7 +88,7 @@ func (self *ServerUnit) Disconnect() {
 	self.Peer.Stop()
 }
 
-func (self *ServerUnit) GetClient(sessionID int64) *ClientUnit {
+func (self *ServerUnit) GetClient(sessionID int64) *Client {
 	self.Lock()
 	defer self.Unlock()
 
@@ -104,9 +108,7 @@ func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
 	self.Pool[client.SessionID()] = client
 
 	LogInfo(client, "Connected")
-	if self.eventTrigger != nil {
-		self.eventTrigger(client, "Connect")
-	}
+	self.clientHandle.(ClientHandle).OnEventTrigger(client, "Connect")
 }
 
 func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
@@ -118,9 +120,7 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 	if ok {
 		delete(self.Pool, sessionID)
 		LogInfo(client, "Disconnected")
-		if self.eventTrigger != nil {
-			self.eventTrigger(client, "DisConnect")
-		}
+		self.clientHandle.(ClientHandle).OnEventTrigger(client, "DisConnect")
 	}
 }
 
@@ -141,12 +141,18 @@ func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
 		if client == nil {
 			LogError(self, "Invalid Client: ", ev.Session().ID())
 		} else {
-			self.onCommand(client, msg)
 			// 当服务器收到的是一个rpc消息
 			if rpcevent, ok := ev.(*rpc.RecvMsgEvent); ok {
-				// 以RPC方式回应
-				LogInfo("RPC Reponse")
-				rpcevent.Reply(msg)
+				response, err := self.clientHandle.(ClientHandle).OnRpcCommand(client, msg)
+				if err != nil {
+					LogError(self, "RpcCommand Error")
+				} else {
+					if response != nil {
+						rpcevent.Reply(response)
+					}
+				}
+			} else {
+				self.clientHandle.(ClientHandle).OnProtoCommand(client, msg)
 			}
 		}
 	}

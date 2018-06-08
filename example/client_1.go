@@ -14,6 +14,9 @@ import (
 
 var Address = "127.0.0.1:3832"
 
+type ConnectCmd struct {
+}
+
 func ReadConsole(callback func(string)) {
 	for {
 		// 从标准输入读取字符串，以\n为分割
@@ -27,7 +30,7 @@ func ReadConsole(callback func(string)) {
 	}
 }
 
-func CustomOnCommand(c *ConnectUnit, msg interface{}) {
+func (self *ConnectCmd) OnProtoCommand(c *Connect, msg interface{}) {
 	switch msg := msg.(type) {
 	case *proto.TestChatACK:
 		fmt.Println("custom command: ", msg)
@@ -36,7 +39,7 @@ func CustomOnCommand(c *ConnectUnit, msg interface{}) {
 	}
 }
 
-func CustomEventTrigger(c *ConnectUnit, name string, args ...interface{}) {
+func (self *ConnectCmd) OnEventTrigger(c *Connect, name string, args ...interface{}) {
 	fmt.Println("CustomEventCommand:  ", c, name, args)
 }
 
@@ -44,7 +47,8 @@ func main() {
 	fmt.Println("start client:")
 
 	InitConnectPool()
-	obj := NewTcpConnect("client", Address, CustomOnCommand, CustomEventTrigger)
+	handle := &ConnectCmd{}
+	obj := NewTcpConnect("client", Address, handle)
 	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {

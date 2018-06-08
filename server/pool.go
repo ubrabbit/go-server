@@ -6,7 +6,7 @@ import (
 
 type ConnectPool struct {
 	sync.Mutex
-	Pool map[int64]*ConnectUnit
+	Pool map[int64]*Connect
 }
 
 type ServerPool struct {
@@ -41,7 +41,7 @@ func (self *ServerPool) Get(name string) *ServerUnit {
 	return nil
 }
 
-func (self *ConnectPool) Add(c *ConnectUnit) {
+func (self *ConnectPool) Add(c *Connect) {
 	self.Lock()
 	defer self.Unlock()
 	self.Pool[c.SessionID()] = c
@@ -58,7 +58,7 @@ func (self *ConnectPool) Remove(sessionID int64) bool {
 	return ok
 }
 
-func (self *ConnectPool) Get(sessionID int64) *ConnectUnit {
+func (self *ConnectPool) Get(sessionID int64) *Connect {
 	self.Lock()
 	defer self.Unlock()
 	obj, ok := self.Pool[sessionID]
