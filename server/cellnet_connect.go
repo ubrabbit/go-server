@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 import (
@@ -11,6 +12,7 @@ import (
 	_ "github.com/davyxu/cellnet/peer/tcp"
 	"github.com/davyxu/cellnet/proc"
 	_ "github.com/davyxu/cellnet/proc/tcp"
+	"github.com/davyxu/cellnet/rpc"
 )
 
 import (
@@ -28,10 +30,10 @@ type ConnectUnit struct {
 	objectID      int64
 	waitConnected chan bool
 	onCommand     func(*ConnectUnit, interface{})
-	eventTrigger  func(string, ...interface{})
+	eventTrigger  func(*ConnectUnit, string, ...interface{})
 }
 
-func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{}), f2 func(string, ...interface{})) *ConnectUnit {
+func NewTcpConnect(name string, address string, f1 func(*ConnectUnit, interface{}), f2 func(*ConnectUnit, string, ...interface{})) *ConnectUnit {
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
@@ -106,7 +108,7 @@ func (self *ConnectUnit) OnConnectSucc(ev cellnet.Event) {
 	//连接成功，取消阻塞
 	self.waitConnected <- true
 	if self.eventTrigger != nil {
-		self.eventTrigger("Connect", self.Address)
+		self.eventTrigger(self, "Connect")
 	}
 }
 
@@ -119,7 +121,7 @@ func (self *ConnectUnit) OnDisconnect(ev cellnet.Event) {
 	pool.Remove(self.SessionID())
 
 	if self.eventTrigger != nil {
-		self.eventTrigger("DisConnect", self.Address)
+		self.eventTrigger(self, "DisConnect")
 	}
 }
 
@@ -152,4 +154,29 @@ func (self *ConnectUnit) PacketRecv(ev cellnet.Event) {
 	default:
 		self.onCommand(self, msg)
 	}
+}
+
+func (self *ConnectUnit) RpcCall(msg interface{}, callback func(*ConnectUnit, interface{}, error), timeout int) error {
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError(self, "RpcCall Error: ", err)
+		}
+	}()
+	if callback == nil {
+		//异步
+		rpc.Call(self.Peer, msg, time.Duration(timeout)*time.Second,
+			func(raw interface{}) {
+				switch result := raw.(type) {
+				case error:
+					LogError(self, "RpcCall Error: ", result)
+				}
+			})
+	} else {
+		//同步
+		ret, err := rpc.CallSync(self.Peer, msg, time.Duration(timeout)*time.Second)
+		callback(self, ret, err)
+		return err
+	}
+	return nil
 }

@@ -45,17 +45,13 @@ func main() {
 
 	InitConnectPool()
 	obj := NewTcpConnect("client", Address, CustomOnCommand, CustomEventTrigger)
-	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
+
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)
-		if str == "close" {
-			obj.Disconnect()
-			return
-		}
-		obj.PacketSend(&proto.TestChatREQ{
+		obj.RpcCall(&proto.TestChatREQ{
 			Content: str,
-		})
+		}, nil, 3)
 	})
 
 }

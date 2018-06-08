@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/davyxu/cellnet/peer/tcp"
 	_ "github.com/davyxu/cellnet/proc/tcp"
+	"github.com/davyxu/cellnet/rpc"
 )
 
 import (
@@ -104,7 +105,7 @@ func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
 
 	LogInfo(client, "Connected")
 	if self.eventTrigger != nil {
-		self.eventTrigger(client, "Connect", client.Address)
+		self.eventTrigger(client, "Connect")
 	}
 }
 
@@ -118,7 +119,7 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 		delete(self.Pool, sessionID)
 		LogInfo(client, "Disconnected")
 		if self.eventTrigger != nil {
-			self.eventTrigger(client, "DisConnect", client.Address)
+			self.eventTrigger(client, "DisConnect")
 		}
 	}
 }
@@ -141,6 +142,12 @@ func (self *ServerUnit) PacketRecv(ev cellnet.Event) {
 			LogError(self, "Invalid Client: ", ev.Session().ID())
 		} else {
 			self.onCommand(client, msg)
+			// 当服务器收到的是一个rpc消息
+			if rpcevent, ok := ev.(*rpc.RecvMsgEvent); ok {
+				// 以RPC方式回应
+				LogInfo("RPC Reponse")
+				rpcevent.Reply(msg)
+			}
 		}
 	}
 }
