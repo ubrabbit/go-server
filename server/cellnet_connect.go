@@ -105,23 +105,20 @@ func (self *Connect) Disconnect() {
 }
 
 func (self *Connect) OnConnectSucc(ev cellnet.Event) {
-	self.Lock()
-	defer self.Unlock()
-
 	LogInfo(self, "ConnectSucc")
 	self.sessionID = self.Session().ID()
 	pool := GetConnectPool()
 	pool.Add(self)
 
 	//连接成功，取消阻塞
-	self.waitConnected <- true
+	if self.waitConnected != nil {
+		self.waitConnected <- true
+		self.waitConnected = nil
+	}
 	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "Connect")
 }
 
 func (self *Connect) OnDisconnect(ev cellnet.Event) {
-	self.Lock()
-	defer self.Unlock()
-
 	LogInfo(self, "Disconnected")
 	pool := GetConnectPool()
 	pool.Remove(self.SessionID())
@@ -137,7 +134,7 @@ func (self *Connect) PacketSend(msg interface{}) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "PacketSend: ", err)
+			LogError(self, "PacketSend Error: ", err)
 		}
 		self.Unlock()
 	}()
@@ -148,7 +145,7 @@ func (self *Connect) PacketRecv(ev cellnet.Event) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "PacketRecv: ", err)
+			LogError(self, "PacketRecv Error: ", err)
 		}
 	}()
 

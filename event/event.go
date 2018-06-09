@@ -50,7 +50,7 @@ func (self *EventPool) Clear() {
 	self.signalQueue <- nil
 }
 
-func (self *EventPool) AddEvent(obj interface{}) (err error) {
+func (self *EventPool) AddEvent(obj interface{}) error {
 	self.Lock()
 	defer self.Unlock()
 
