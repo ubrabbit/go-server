@@ -5,9 +5,7 @@ import (
 )
 
 var (
-	g_ObjectID    *ObjectID    = nil
-	g_ServerPool  *ServerPool  = nil
-	g_ConnectPool *ConnectPool = nil
+	g_ObjectID *ObjectID = nil
 )
 
 type ObjectID struct {
@@ -27,25 +25,5 @@ func newObjectID() int64 {
 	return g_ObjectID.UUID
 }
 
-func InitConnectPool() {
-	g_ConnectPool = new(ConnectPool)
-	g_ConnectPool.Pool = make(map[int64]*Connect, 0)
-}
-
-func InitServerPool() {
-	g_ServerPool = new(ServerPool)
-	g_ServerPool.Pool = make(map[string]*ServerUnit, 0)
-}
-
-func GetServerPool() *ServerPool {
-	return g_ServerPool
-}
-
-func GetConnectPool() *ConnectPool {
-	return g_ConnectPool
-}
-
 func InitServer() {
-	InitConnectPool()
-	InitServerPool()
 }

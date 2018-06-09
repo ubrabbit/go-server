@@ -16,7 +16,7 @@ var Address = "127.0.0.1:3832"
 type ClientCmd struct {
 }
 
-func (self *ClientCmd) OnProtoCommand(c *Client, msg interface{}) {
+func (self *ClientCmd) OnProtoCommand(c *TcpClient, msg interface{}) {
 	//LogInfo("onServerCommand:  ", c.ObjectID())
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
@@ -30,21 +30,21 @@ func (self *ClientCmd) OnProtoCommand(c *Client, msg interface{}) {
 	}
 }
 
-func (self *ClientCmd) OnRpcCommand(c *Client, msg interface{}) (interface{}, error) {
+func (self *ClientCmd) OnRpcCommand(c *TcpClient, msg interface{}) (interface{}, error) {
 	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand")
 	time.Sleep(10 * time.Second)
 	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand Ack")
 	return proto.TestChatREQ{Content: "Rpc_Respond"}, nil
 }
 
-func (self *ClientCmd) OnEventTrigger(c *Client, name string, args ...interface{}) {
+func (self *ClientCmd) OnEventTrigger(c *TcpClient, name string, args ...interface{}) {
 	LogInfo(c, " EventTrigger: ", name, args)
 }
 
 func main() {
 	fmt.Println("start server:")
 
-	InitServerPool()
 	handle := &ClientCmd{}
-	NewTcpServer("server", Address, true, handle)
+	obj := NewTcpServer("server", Address, handle)
+	obj.WaitStop()
 }

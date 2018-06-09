@@ -10,7 +10,7 @@ import (
 	"github.com/davyxu/cellnet"
 )
 
-type Client struct {
+type TcpClient struct {
 	sync.Mutex
 	Address string
 	Parent  *ServerUnit
@@ -20,8 +20,8 @@ type Client struct {
 	session   cellnet.Session
 }
 
-func NewTcpClient(ev cellnet.Event) *Client {
-	obj := new(Client)
+func NewTcpClient(ev cellnet.Event) *TcpClient {
+	obj := new(TcpClient)
 	obj.Parent = nil
 	obj.Address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
 	obj.session = ev.Session()
@@ -30,23 +30,23 @@ func NewTcpClient(ev cellnet.Event) *Client {
 	return obj
 }
 
-func (self *Client) String() string {
-	return fmt.Sprintf("[Client][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
+func (self *TcpClient) String() string {
+	return fmt.Sprintf("[TcpClient][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
 }
 
-func (self *Client) ObjectID() int64 {
+func (self *TcpClient) ObjectID() int64 {
 	return self.objectID
 }
 
-func (self *Client) Session() cellnet.Session {
+func (self *TcpClient) Session() cellnet.Session {
 	return self.session
 }
 
-func (self *Client) SessionID() int64 {
+func (self *TcpClient) SessionID() int64 {
 	return self.sessionID
 }
 
-func (self *Client) PacketSend(msg interface{}) {
+func (self *TcpClient) PacketSend(msg interface{}) {
 	self.Lock()
 	defer self.Unlock()
 

@@ -24,11 +24,11 @@ const (
 )
 
 type ConnectHandle interface {
-	OnProtoCommand(*Connect, interface{})
-	OnEventTrigger(*Connect, string, ...interface{})
+	OnProtoCommand(*TcpConnect, interface{})
+	OnEventTrigger(*TcpConnect, string, ...interface{})
 }
 
-type Connect struct {
+type TcpConnect struct {
 	sync.Mutex
 	Name    string
 	Address string
@@ -42,8 +42,8 @@ type Connect struct {
 	connectHandle interface{}
 }
 
-func NewTcpConnect(name string, address string, handle interface{}) *Connect {
-	obj := new(Connect)
+func NewTcpConnect(name string, address string, handle interface{}) *TcpConnect {
+	obj := new(TcpConnect)
 	obj.Name = name
 	obj.Address = address
 	obj.objectID = newObjectID()
@@ -73,26 +73,26 @@ func NewTcpConnect(name string, address string, handle interface{}) *Connect {
 }
 
 //__repr__
-func (self *Connect) String() string {
-	return fmt.Sprintf("[Connect][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
+func (self *TcpConnect) String() string {
+	return fmt.Sprintf("[TcpConnect][%s]-%d-%d ", self.Address, self.objectID, self.sessionID)
 }
 
-func (self *Connect) ObjectID() int64 {
+func (self *TcpConnect) ObjectID() int64 {
 	return self.objectID
 }
 
-func (self *Connect) Session() cellnet.Session {
+func (self *TcpConnect) Session() cellnet.Session {
 	return self.Peer.(interface {
 		Session() cellnet.Session
 	}).Session()
 }
 
 //sessionID在断线后通过Session获取不到
-func (self *Connect) SessionID() int64 {
+func (self *TcpConnect) SessionID() int64 {
 	return self.sessionID
 }
 
-func (self *Connect) Disconnect() {
+func (self *TcpConnect) Disconnect() {
 	self.Lock()
 	defer func() {
 		err := recover()
@@ -104,11 +104,9 @@ func (self *Connect) Disconnect() {
 	self.Peer.Stop()
 }
 
-func (self *Connect) OnConnectSucc(ev cellnet.Event) {
+func (self *TcpConnect) OnConnectSucc(ev cellnet.Event) {
 	LogInfo(self, "ConnectSucc")
 	self.sessionID = self.Session().ID()
-	pool := GetConnectPool()
-	pool.Add(self)
 
 	//连接成功，取消阻塞
 	if self.waitConnected != nil {
@@ -118,18 +116,15 @@ func (self *Connect) OnConnectSucc(ev cellnet.Event) {
 	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "Connect")
 }
 
-func (self *Connect) OnDisconnect(ev cellnet.Event) {
+func (self *TcpConnect) OnDisconnect(ev cellnet.Event) {
 	LogInfo(self, "Disconnected")
-	pool := GetConnectPool()
-	pool.Remove(self.SessionID())
-
 	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "DisConnect")
 }
 
-func (self *Connect) OnRpcAck(ev cellnet.Event) {
+func (self *TcpConnect) OnRpcAck(ev cellnet.Event) {
 }
 
-func (self *Connect) PacketSend(msg interface{}) {
+func (self *TcpConnect) PacketSend(msg interface{}) {
 	self.Lock()
 	defer func() {
 		err := recover()
@@ -141,7 +136,7 @@ func (self *Connect) PacketSend(msg interface{}) {
 	self.Session().Send(msg)
 }
 
-func (self *Connect) PacketRecv(ev cellnet.Event) {
+func (self *TcpConnect) PacketRecv(ev cellnet.Event) {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -163,7 +158,7 @@ func (self *Connect) PacketRecv(ev cellnet.Event) {
 	}
 }
 
-func (self *Connect) RpcCall(msg interface{}) error {
+func (self *TcpConnect) RpcCall(msg interface{}) error {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -182,7 +177,7 @@ func (self *Connect) RpcCall(msg interface{}) error {
 	return nil
 }
 
-func (self *Connect) RpcCallSync(msg interface{}, callback func(*Connect, interface{}, error)) error {
+func (self *TcpConnect) RpcCallSync(msg interface{}, callback func(*TcpConnect, interface{}, error)) error {
 	defer func() {
 		err := recover()
 		if err != nil {

@@ -20,9 +20,9 @@ import (
 )
 
 type ClientHandle interface {
-	OnProtoCommand(*Client, interface{})
-	OnRpcCommand(*Client, interface{}) (interface{}, error)
-	OnEventTrigger(*Client, string, ...interface{})
+	OnProtoCommand(*TcpClient, interface{})
+	OnRpcCommand(*TcpClient, interface{}) (interface{}, error)
+	OnEventTrigger(*TcpClient, string, ...interface{})
 }
 
 type ServerUnit struct {
@@ -31,22 +31,21 @@ type ServerUnit struct {
 	Address string
 	Queue   cellnet.EventQueue
 	Peer    cellnet.GenericPeer
-	Pool    map[int64]*Client
+	Pool    map[int64]*TcpClient
 
 	objectID     int64
 	clientHandle interface{}
+	waitStopped  chan bool
 }
 
-func NewTcpServer(name string, address string, is_block bool, handle interface{}) *ServerUnit {
+func NewTcpServer(name string, address string, handle interface{}) *ServerUnit {
 	obj := new(ServerUnit)
 	obj.Name = name
 	obj.Address = address
-	obj.Pool = make(map[int64]*Client, 0)
+	obj.Pool = make(map[int64]*TcpClient, 0)
 	obj.clientHandle = handle
 	obj.objectID = newObjectID()
-
-	pool := GetServerPool()
-	pool.Add(obj)
+	obj.waitStopped = make(chan bool, 1)
 
 	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
 	queue := cellnet.NewEventQueue()
@@ -55,11 +54,8 @@ func NewTcpServer(name string, address string, is_block bool, handle interface{}
 	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.PacketRecv)
 	obj.Queue = queue
 	obj.Peer = peerIns
-	if is_block {
-		obj.Run()
-	} else {
-		go obj.Run()
-	}
+
+	go obj.serverRun()
 	return obj
 }
 
@@ -67,8 +63,20 @@ func (self *ServerUnit) String() string {
 	return fmt.Sprintf("[Server][%s][%s]-%d ", self.Address, self.Name, self.objectID)
 }
 
+func (self *ServerUnit) WaitStop() {
+	<-self.waitStopped
+	LogInfo(self, "Stopped")
+}
+
 //此函数运行失败就直接让它崩溃
-func (self *ServerUnit) Run() {
+func (self *ServerUnit) serverRun() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError(self, "RunError:  ", err)
+		}
+		self.waitStopped <- true
+	}()
 	// 开始侦听
 	self.Peer.Start()
 	// 事件队列开始循环
@@ -78,24 +86,16 @@ func (self *ServerUnit) Run() {
 }
 
 func (self *ServerUnit) Disconnect() {
+	self.Lock()
 	defer func() {
 		err := recover()
 		if err != nil {
 			LogError(self, " Disconnect Error: ", err)
 		}
+		self.Unlock()
 	}()
 	self.Peer.Stop()
-}
-
-func (self *ServerUnit) GetClient(sessionID int64) *Client {
-	self.Lock()
-	defer self.Unlock()
-
-	obj, ok := self.Pool[sessionID]
-	if ok {
-		return obj
-	}
-	return nil
+	self.waitStopped <- true
 }
 
 func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
@@ -121,6 +121,17 @@ func (self *ServerUnit) OnDisconnect(ev cellnet.Event) {
 		LogInfo(client, "Disconnected")
 		self.clientHandle.(ClientHandle).OnEventTrigger(client, "DisConnect")
 	}
+}
+
+func (self *ServerUnit) GetClient(sessionID int64) *TcpClient {
+	self.Lock()
+	defer self.Unlock()
+
+	obj, ok := self.Pool[sessionID]
+	if ok {
+		return obj
+	}
+	return nil
 }
 
 func (self *ServerUnit) PacketRecv(ev cellnet.Event) {

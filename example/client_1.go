@@ -30,7 +30,7 @@ func ReadConsole(callback func(string)) {
 	}
 }
 
-func (self *ConnectCmd) OnProtoCommand(c *Connect, msg interface{}) {
+func (self *ConnectCmd) OnProtoCommand(c *TcpConnect, msg interface{}) {
 	switch msg := msg.(type) {
 	case *proto.TestChatACK:
 		fmt.Println("custom command: ", msg)
@@ -39,14 +39,13 @@ func (self *ConnectCmd) OnProtoCommand(c *Connect, msg interface{}) {
 	}
 }
 
-func (self *ConnectCmd) OnEventTrigger(c *Connect, name string, args ...interface{}) {
+func (self *ConnectCmd) OnEventTrigger(c *TcpConnect, name string, args ...interface{}) {
 	fmt.Println("CustomEventCommand:  ", c, name, args)
 }
 
 func main() {
 	fmt.Println("start client:")
 
-	InitConnectPool()
 	handle := &ConnectCmd{}
 	obj := NewTcpConnect("client", Address, handle)
 	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
