@@ -32,7 +32,7 @@ func (self *ClientCmd) OnProtoCommand(c *Client, msg interface{}) {
 
 func (self *ClientCmd) OnRpcCommand(c *Client, msg interface{}) (interface{}, error) {
 	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand")
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand Ack")
 	return proto.TestChatREQ{Content: "Rpc_Respond"}, nil
 }

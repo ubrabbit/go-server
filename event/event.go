@@ -1,18 +1,13 @@
 package event
 
 import (
+	"container/list"
 	"fmt"
 	"sync"
 )
 
 import (
 	. "github.com/ubrabbit/go-server/common"
-)
-
-const (
-	EventAdd     = 1 //添加事件
-	EventRemove  = 2 //删除事件
-	EventExecute = 3 //触发事件
 )
 
 const (
@@ -26,15 +21,17 @@ var (
 type EventPool struct {
 	sync.Mutex
 	signalQueue chan *EventSignal
-	listenQueue map[string][]int
+	listenQueue map[string]*list.List
 	eventPool   map[int]interface{}
+	isClear     bool
 }
 
 func NewEventPool(queueLen int) *EventPool {
 	obj := new(EventPool)
 	obj.signalQueue = make(chan *EventSignal, queueLen)
-	obj.listenQueue = make(map[string][]int, 0)
+	obj.listenQueue = make(map[string]*list.List, 0)
 	obj.eventPool = make(map[int]interface{}, 0)
+	obj.isClear = false
 	go obj.eventListener()
 	return obj
 }
@@ -46,30 +43,89 @@ type EventFunc interface {
 }
 
 type EventSignal struct {
-	Type int
 	Name string
 	Args []interface{}
 }
 
 func (self *EventSignal) String() string {
-	return fmt.Sprintf("[Signal][%s]-%d", self.Name, self.Type)
+	return fmt.Sprintf("[Signal][%s]", self.Name)
+}
+
+func (self *EventPool) Clear() {
+	self.Lock()
+	defer self.Unlock()
+
+	self.isClear = true
+	self.signalQueue <- nil
 }
 
 func (self *EventPool) AddEvent(obj interface{}) bool {
-	return self.pushEvent("AddEvent", EventAdd, obj)
+	self.Lock()
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError("AddEvent Error: ", obj, err)
+		}
+		self.Unlock()
+	}()
+
+	if self.isClear {
+		return false
+	}
+
+	id := obj.(EventFunc).ID()
+	name := obj.(EventFunc).Name()
+	_, exists := self.listenQueue[name]
+	if !exists {
+		self.listenQueue[name] = list.New()
+	}
+	_, exists = self.eventPool[id]
+	if !exists {
+		self.listenQueue[name].PushBack(id)
+		self.eventPool[id] = obj
+		return true
+	}
+	return false
 }
 
 func (self *EventPool) RemoveEvent(id int) bool {
-	return self.pushEvent("RemoveEvent", EventRemove, id)
+	self.Lock()
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError("RemoveEvent Error: ", id, err)
+		}
+		self.Unlock()
+	}()
+
+	obj, exists := self.eventPool[id]
+	if exists {
+		name := obj.(EventFunc).Name()
+		e := self.getEvent(name, id)
+		if e == nil {
+			return true
+		}
+		delete(self.eventPool, id)
+		self.listenQueue[name].Remove(e)
+	}
+	return true
+}
+
+func (self *EventPool) getEvent(name string, id int) *list.Element {
+	l, ok := self.listenQueue[name]
+	if !ok {
+		return nil
+	}
+	for v := l.Front(); v != nil; v = v.Next() {
+		if v.Value == id {
+			return v
+		}
+	}
+	return nil
 }
 
 func (self *EventPool) TriggerEvent(name string, args ...interface{}) {
-	self.pushEvent(name, EventExecute, args...)
-}
-
-func (self *EventPool) pushEvent(name string, t int, args ...interface{}) bool {
-	self.signalQueue <- &EventSignal{Name: name, Type: t, Args: args}
-	return true
+	self.signalQueue <- &EventSignal{Name: name, Args: args}
 }
 
 func (self *EventPool) eventListener() {
@@ -78,88 +134,30 @@ func (self *EventPool) eventListener() {
 		if obj == nil {
 			break
 		}
-		defer func() {
-			err := recover()
-			if err != nil {
-				LogError("Listen Signal Error: ", obj, err)
-			}
-		}()
 
-		switch obj.Type {
-		case EventAdd:
-			event := obj.Args[0]
-			self.add(event)
-		case EventRemove:
-			id := obj.Args[0].(int)
-			self.remove(id)
-		case EventExecute:
-			self.trigger(obj.Name, obj.Args...)
-		default:
-			LogError("Invalid Event Type: ", obj.Type)
-		}
+		self.Lock()
+		self.executeEvent(obj)
+		self.Unlock()
 	}
 }
 
-func (self *EventPool) add(obj interface{}) bool {
-	self.Lock()
-	defer self.Unlock()
-
-	id := obj.(EventFunc).ID()
-	name := obj.(EventFunc).Name()
-	_, exists := self.eventPool[id]
-	if !exists {
-		self.listenQueue[name] = append(self.listenQueue[name], id)
-		self.eventPool[id] = obj
-		return true
-	}
-	return false
-}
-
-func (self *EventPool) remove(id int) bool {
-	self.Lock()
-	defer self.Unlock()
-
-	obj, exists := self.eventPool[id]
-	if exists {
-		name := obj.(EventFunc).Name()
-		idx := -1
-		for i, v := range self.listenQueue[name] {
-			if v == id {
-				idx = i
-				break
-			}
-		}
-		if idx != -1 {
-			self.listenQueue[name] = append(self.listenQueue[name][:idx], self.listenQueue[name][idx+1:]...)
-		}
-		delete(self.eventPool, id)
-	}
-	return true
-}
-
-func (self *EventPool) trigger(name string, args ...interface{}) {
-	self.Lock()
-	defer self.Unlock()
-
-	list, exists := self.listenQueue[name]
-	if !exists {
-		LogError("Event Not Exists:  ", name)
-		return
-	}
-	for _, id := range list {
-		event := self.eventPool[id]
-		execute(event, args...)
-	}
-}
-
-func execute(event interface{}, args ...interface{}) {
+func (self *EventPool) executeEvent(obj *EventSignal) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError("executeEvent Error:  ", err)
+			LogError("executeEvent Error: ", obj, err)
 		}
 	}()
-	event.(EventFunc).Execute(args...)
+	name := obj.Name
+	l, exists := self.listenQueue[name]
+	if !exists {
+		return
+	}
+	for v := l.Front(); v != nil; v = v.Next() {
+		id := v.Value.(int)
+		event := self.eventPool[id]
+		event.(EventFunc).Execute(obj.Args...)
+	}
 }
 
 func getEventPool() *EventPool {

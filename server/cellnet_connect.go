@@ -19,6 +19,10 @@ import (
 	. "github.com/ubrabbit/go-server/common"
 )
 
+const (
+	RpcTimeout = 60
+)
+
 type ConnectHandle interface {
 	OnProtoCommand(*Connect, interface{})
 	OnEventTrigger(*Connect, string, ...interface{})
@@ -39,30 +43,30 @@ type Connect struct {
 }
 
 func NewTcpConnect(name string, address string, handle interface{}) *Connect {
-	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
-	queue := cellnet.NewEventQueue()
-	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
-	//p := peer.NewGenericPeer("tcp.Connector", "Connect", "127.0.0.1:18801", queue)
-	p := peer.NewGenericPeer("tcp.Connector", name, address, queue)
-	//p.SetReconnectDuration(1)
-
 	obj := new(Connect)
 	obj.Name = name
 	obj.Address = address
-	obj.Queue = queue
-	obj.Peer = p
 	obj.objectID = newObjectID()
 	obj.sessionID = 0
 	obj.connectHandle = handle
 	obj.waitConnected = make(chan bool, 1)
 
-	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
+	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
+	queue := cellnet.NewEventQueue()
+	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
+	// peer.NewGenericPeer("tcp.Connector", "Connect", "127.0.0.1:18801", queue)
+	peerIns := peer.NewGenericPeer("tcp.Connector", name, address, queue)
+	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.PacketRecv)
+	// 在peerIns接口中查询TCPConnector接口，设置连接超时1秒后自动重连
+	peerIns.(cellnet.TCPConnector).SetReconnectDuration(1 * time.Second)
+	obj.Queue = queue
+	obj.Peer = peerIns
 	// 开始发起到服务器的连接
 	obj.Peer.Start()
 	// 事件队列开始循环
 	obj.Queue.StartLoop()
 
-	//等待连接成功再返回
+	// 等待连接成功再返回
 	<-obj.waitConnected
 	obj.waitConnected = nil
 	return obj
@@ -162,29 +166,35 @@ func (self *Connect) PacketRecv(ev cellnet.Event) {
 	}
 }
 
-func (self *Connect) RpcCall(msg interface{}, callback func(*Connect, interface{}, error), timeout int) error {
+func (self *Connect) RpcCall(msg interface{}) error {
 	defer func() {
 		err := recover()
 		if err != nil {
 			LogError(self, "RpcCall Error: ", err)
 		}
 	}()
-	if callback == nil {
-		//异步
-		LogInfo("rpc.Call")
-		rpc.Call(self.Peer, msg, time.Duration(timeout)*time.Second,
-			func(raw interface{}) {
-				switch result := raw.(type) {
-				case error:
-					LogError(self, "RpcCall Error: ", result)
-				}
-			})
-	} else {
-		//同步
-		LogInfo("rpc.CallSync")
-		ret, err := rpc.CallSync(self.Peer, msg, time.Duration(timeout)*time.Second)
-		callback(self, ret, err)
-		return err
-	}
+	//异步
+	LogInfo("RpcCall")
+	rpc.Call(self.Peer, msg, time.Duration(RpcTimeout)*time.Second,
+		func(raw interface{}) {
+			switch result := raw.(type) {
+			case error:
+				LogError(self, "RpcCall Error: ", result)
+			}
+		})
 	return nil
+}
+
+func (self *Connect) RpcCallSync(msg interface{}, callback func(*Connect, interface{}, error)) error {
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError(self, "RpcCallSync Error: ", err)
+		}
+	}()
+	//同步
+	LogInfo("RpcCallSync")
+	ret, err := rpc.CallSync(self.Peer, msg, time.Duration(RpcTimeout)*time.Second)
+	callback(self, ret, err)
+	return err
 }

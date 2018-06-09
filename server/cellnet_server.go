@@ -38,16 +38,9 @@ type ServerUnit struct {
 }
 
 func NewTcpServer(name string, address string, is_block bool, handle interface{}) *ServerUnit {
-	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
-	queue := cellnet.NewEventQueue()
-	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
-	p := peer.NewGenericPeer("tcp.Acceptor", name, address, queue)
-
 	obj := new(ServerUnit)
 	obj.Name = name
 	obj.Address = address
-	obj.Queue = queue
-	obj.Peer = p
 	obj.Pool = make(map[int64]*Client, 0)
 	obj.clientHandle = handle
 	obj.objectID = newObjectID()
@@ -55,7 +48,13 @@ func NewTcpServer(name string, address string, is_block bool, handle interface{}
 	pool := GetServerPool()
 	pool.Add(obj)
 
-	proc.BindProcessorHandler(p, "tcp.ltv", obj.PacketRecv)
+	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
+	queue := cellnet.NewEventQueue()
+	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
+	peerIns := peer.NewGenericPeer("tcp.Acceptor", name, address, queue)
+	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.PacketRecv)
+	obj.Queue = queue
+	obj.Peer = peerIns
 	if is_block {
 		obj.Run()
 	} else {

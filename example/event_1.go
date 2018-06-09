@@ -25,21 +25,23 @@ func (self *EventTest_1) Name() string {
 func (self *EventTest_1) Execute(args ...interface{}) {
 	v1 := args[0].(int)
 	v2 := args[1].(string)
-	LogInfo("EventTest_1  Execute:")
-	LogInfo("v1:  ", v1)
-	LogInfo("v2:  ", v2)
+	LogInfo("EventTest_1  Execute:  ", v1, v2)
 }
 
 func main() {
 	LogInfo("Start")
 	InitEvent()
 
-	AddEvent(&EventTest_1{eventName: "test", eventID: 10086})
-	TriggerEvent("test", 111, "hello")
+	AddEvent(&EventTest_1{eventName: "event_1", eventID: 1})
+	AddEvent(&EventTest_1{eventName: "event_2", eventID: 2})
+	TriggerEvent("event_1", 111, "event_1 trigger_0")
 
 	time.Sleep(1 * time.Millisecond)
-	RemoveEvent(10086)
-	TriggerEvent("test", 222, "hello22")
+	RemoveEvent(1)
+	TriggerEvent("event_1", 111, "event_1 trigger_1")
+	RemoveEvent(3)
+	RemoveEvent(4)
+	TriggerEvent("event_2", 222, "event_2 trigger")
 
 	time.Sleep(3 * time.Second)
 	LogInfo("Finished")

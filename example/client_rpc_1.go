@@ -58,9 +58,9 @@ func main() {
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)
-		obj.RpcCall(&proto.TestChatREQ{
+		obj.RpcCallSync(&proto.TestChatREQ{
 			Content: str,
-		}, RpcCallBack, 5)
+		}, RpcCallBack)
 	})
 
 }
