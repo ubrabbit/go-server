@@ -42,8 +42,11 @@ func main() {
 	}
 
 	time.Sleep(1 * time.Millisecond)
+	TriggerEvent("event_1", 111, "event_1 trigger_0-1")
 	RemoveEvent(1)
 	TriggerEvent("event_1", 111, "event_1 trigger_1")
+	TriggerEvent("event_1", 111, "event_1 trigger_2")
+	TriggerEvent("event_1", 111, "event_1 trigger_3")
 	RemoveEvent(3)
 	RemoveEvent(4)
 	TriggerEvent("event_2", 222, "event_2 trigger")

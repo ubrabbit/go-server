@@ -25,5 +25,8 @@ func newObjectID() int64 {
 	return g_ObjectID.UUID
 }
 
+type Client interface {
+}
+
 func InitServer() {
 }

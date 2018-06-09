@@ -74,23 +74,11 @@ func (self *EventPool) AddEvent(obj interface{}) error {
 
 func (self *EventPool) RemoveEvent(id int) error {
 	self.Lock()
-	defer func() {
-		err := recover()
-		if err != nil {
-			LogError("RemoveEvent Error: ", id, err)
-		}
-		self.Unlock()
-	}()
+	defer self.Unlock()
 
-	obj, exists := self.eventPool[id]
+	_, exists := self.eventPool[id]
 	if exists {
-		name := obj.(EventFunc).Name()
-		e := self.getEvent(name, id)
-		if e == nil {
-			return nil
-		}
-		delete(self.eventPool, id)
-		self.listenQueue[name].Remove(e)
+		self.signalQueue <- &EventSignal{Name: "Remove", Type: SIGNAL_TYPE_REMOVE, Args: []interface{}{id}}
 	}
 	return nil
 }
@@ -109,7 +97,7 @@ func (self *EventPool) getEvent(name string, id int) *list.Element {
 }
 
 func (self *EventPool) TriggerEvent(name string, args ...interface{}) {
-	self.signalQueue <- &EventSignal{Name: name, Args: args}
+	self.signalQueue <- &EventSignal{Name: name, Type: SIGNAL_TYPE_EXECUTE, Args: args}
 }
 
 func (self *EventPool) eventListener() {
@@ -134,14 +122,29 @@ func (self *EventPool) executeEvent(obj *EventSignal) {
 		}
 	}()
 	name := obj.Name
-	l, exists := self.listenQueue[name]
-	if !exists {
-		return
-	}
-	for v := l.Front(); v != nil; v = v.Next() {
-		id := v.Value.(int)
-		event := self.eventPool[id]
-		event.(EventFunc).Execute(obj.Args...)
+	switch obj.Type {
+	case SIGNAL_TYPE_REMOVE:
+		id := obj.Args[0].(int)
+		obj, exists := self.eventPool[id]
+		if exists {
+			delete(self.eventPool, id)
+			name := obj.(EventFunc).Name()
+			elem := self.getEvent(name, id)
+			if elem != nil {
+				self.listenQueue[name].Remove(elem)
+			}
+		}
+	case SIGNAL_TYPE_EXECUTE:
+		lst, exists := self.listenQueue[name]
+		if exists {
+			for v := lst.Front(); v != nil; v = v.Next() {
+				id := v.Value.(int)
+				event := self.eventPool[id]
+				event.(EventFunc).Execute(obj.Args...)
+			}
+		}
+	default:
+		LogError("Invalid EventSignal Error: ", obj)
 	}
 }
 

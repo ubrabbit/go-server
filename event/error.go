@@ -1,9 +1,9 @@
 package event
 
 const (
-	ERROR_SUCCESS = iota
-	ERROR_EVENT_CLEARED
-	ERROR_EVENT_ADD_EXISTS //
+	ERROR_SUCCESS          = iota
+	ERROR_EVENT_CLEARED    //事件池已经被清除
+	ERROR_EVENT_ADD_EXISTS //事件已存在
 )
 
 type EventError struct {
