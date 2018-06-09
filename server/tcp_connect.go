@@ -23,7 +23,7 @@ const (
 	RpcTimeout = 60
 )
 
-type ConnectHandle interface {
+type TcpConnectHandle interface {
 	OnProtoCommand(*TcpConnect, interface{})
 	OnEventTrigger(*TcpConnect, string, ...interface{})
 }
@@ -113,12 +113,12 @@ func (self *TcpConnect) OnConnectSucc(ev cellnet.Event) {
 		self.waitConnected <- true
 		self.waitConnected = nil
 	}
-	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "Connect")
+	self.connectHandle.(TcpConnectHandle).OnEventTrigger(self, "Connect")
 }
 
 func (self *TcpConnect) OnDisconnect(ev cellnet.Event) {
 	LogInfo(self, "Disconnected")
-	self.connectHandle.(ConnectHandle).OnEventTrigger(self, "DisConnect")
+	self.connectHandle.(TcpConnectHandle).OnEventTrigger(self, "DisConnect")
 }
 
 func (self *TcpConnect) OnRpcAck(ev cellnet.Event) {
@@ -154,7 +154,7 @@ func (self *TcpConnect) PacketRecv(ev cellnet.Event) {
 	case *rpc.RemoteCallACK:
 		self.OnRpcAck(ev)
 	default:
-		self.connectHandle.(ConnectHandle).OnProtoCommand(self, msg)
+		self.connectHandle.(TcpConnectHandle).OnProtoCommand(self, msg)
 	}
 }
 

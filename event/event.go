@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	g_DefaultQueueLen = 1000 //默认队列长度
+	g_DefaultQueueLen = 10000 //默认队列长度
 )
 
 var (
@@ -78,20 +78,8 @@ func (self *EventPool) RemoveEvent(id int) error {
 
 	_, exists := self.eventPool[id]
 	if exists {
+		//通过推送队列来删除，保证先前已经进入队列但还没执行的事件都执行完
 		self.signalQueue <- &EventSignal{Name: "Remove", Type: SIGNAL_TYPE_REMOVE, Args: []interface{}{id}}
-	}
-	return nil
-}
-
-func (self *EventPool) getEvent(name string, id int) *list.Element {
-	l, ok := self.listenQueue[name]
-	if !ok {
-		return nil
-	}
-	for v := l.Front(); v != nil; v = v.Next() {
-		if v.Value == id {
-			return v
-		}
 	}
 	return nil
 }
@@ -114,6 +102,19 @@ func (self *EventPool) eventListener() {
 	}
 }
 
+func (self *EventPool) getEventElem(name string, id int) *list.Element {
+	l, ok := self.listenQueue[name]
+	if !ok {
+		return nil
+	}
+	for v := l.Front(); v != nil; v = v.Next() {
+		if v.Value == id {
+			return v
+		}
+	}
+	return nil
+}
+
 func (self *EventPool) executeEvent(obj *EventSignal) {
 	defer func() {
 		err := recover()
@@ -129,7 +130,7 @@ func (self *EventPool) executeEvent(obj *EventSignal) {
 		if exists {
 			delete(self.eventPool, id)
 			name := obj.(EventFunc).Name()
-			elem := self.getEvent(name, id)
+			elem := self.getEventElem(name, id)
 			if elem != nil {
 				self.listenQueue[name].Remove(elem)
 			}

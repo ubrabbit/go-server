@@ -111,11 +111,11 @@ func (self *TcpServer) OnConnectSucc(ev cellnet.Event) {
 	self.Lock()
 	defer self.Unlock()
 
-	client := NewTcpClient(ev)
+	client := newTcpClient(ev)
 	self.Pool[client.SessionID()] = client
 
 	LogInfo(client, "Connected")
-	self.clientHandle.(ClientHandle).OnEventTrigger(client, "Connect")
+	self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "Connect")
 }
 
 func (self *TcpServer) OnDisconnect(ev cellnet.Event) {
@@ -127,7 +127,7 @@ func (self *TcpServer) OnDisconnect(ev cellnet.Event) {
 	if ok {
 		delete(self.Pool, sessionID)
 		LogInfo(client, "Disconnected")
-		self.clientHandle.(ClientHandle).OnEventTrigger(client, "DisConnect")
+		self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "DisConnect")
 	}
 }
 
@@ -161,7 +161,7 @@ func (self *TcpServer) PacketRecv(ev cellnet.Event) {
 		} else {
 			// 当服务器收到的是一个rpc消息
 			if rpcevent, ok := ev.(*rpc.RecvMsgEvent); ok {
-				response, err := self.clientHandle.(ClientHandle).OnRpcCommand(client, msg)
+				response, err := self.clientHandle.(TcpClientHandle).OnRpcCommand(client, msg)
 				if err != nil {
 					LogError(self, "RpcCommand Error")
 				} else {
@@ -170,7 +170,7 @@ func (self *TcpServer) PacketRecv(ev cellnet.Event) {
 					}
 				}
 			} else {
-				self.clientHandle.(ClientHandle).OnProtoCommand(client, msg)
+				self.clientHandle.(TcpClientHandle).OnProtoCommand(client, msg)
 			}
 		}
 	}

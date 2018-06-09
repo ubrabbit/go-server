@@ -19,7 +19,7 @@ type TcpClient struct {
 	session   cellnet.Session
 }
 
-func NewTcpClient(ev cellnet.Event) *TcpClient {
+func newTcpClient(ev cellnet.Event) *TcpClient {
 	obj := new(TcpClient)
 	obj.Address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
 	obj.session = ev.Session()
@@ -48,5 +48,5 @@ func (self *TcpClient) PacketSend(msg interface{}) {
 	self.Lock()
 	defer self.Unlock()
 
-	self.Session().Send(&msg)
+	self.Session().Send(msg)
 }

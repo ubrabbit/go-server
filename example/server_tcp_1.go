@@ -22,7 +22,7 @@ func (self *ClientCmd) OnProtoCommand(c *TcpClient, msg interface{}) {
 	case *proto.TestChatREQ:
 		msg2 := msg.Content
 		LogInfo("TestChatREQ:  ", msg2)
-		c.Parent.Broadcast(&proto.TestChatACK{Content: "respond_start: " + msg2 + " finish_response", Id: c.SessionID()})
+		//c.Parent.Broadcast(&proto.TestChatACK{Content: "respond_start: " + msg2 + " finish_response", Id: c.SessionID()})
 	case *proto.C2SConnect:
 		LogInfo("C2SConnect:  ", msg)
 	default:
