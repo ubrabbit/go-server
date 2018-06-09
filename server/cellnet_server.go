@@ -68,6 +68,13 @@ func (self *ServerUnit) WaitStop() {
 	LogInfo(self, "Stopped")
 }
 
+func (self *ServerUnit) setStop() {
+	if self.waitStopped != nil {
+		self.waitStopped <- true
+		self.waitStopped = nil
+	}
+}
+
 //此函数运行失败就直接让它崩溃
 func (self *ServerUnit) serverRun() {
 	defer func() {
@@ -75,7 +82,7 @@ func (self *ServerUnit) serverRun() {
 		if err != nil {
 			LogError(self, "RunError:  ", err)
 		}
-		self.waitStopped <- true
+		self.setStop()
 	}()
 	// 开始侦听
 	self.Peer.Start()
@@ -92,10 +99,10 @@ func (self *ServerUnit) Disconnect() {
 		if err != nil {
 			LogError(self, " Disconnect Error: ", err)
 		}
+		self.setStop()
 		self.Unlock()
 	}()
 	self.Peer.Stop()
-	self.waitStopped <- true
 }
 
 func (self *ServerUnit) OnConnectSucc(ev cellnet.Event) {
