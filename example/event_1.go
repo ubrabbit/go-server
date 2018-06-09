@@ -36,6 +36,11 @@ func main() {
 	AddEvent(&EventTest_1{eventName: "event_2", eventID: 2})
 	TriggerEvent("event_1", 111, "event_1 trigger_0")
 
+	err := AddEvent(&EventTest_1{eventName: "event_1", eventID: 1})
+	if err != nil {
+		LogError("AddEvent Error:  ", err.Error())
+	}
+
 	time.Sleep(1 * time.Millisecond)
 	RemoveEvent(1)
 	TriggerEvent("event_1", 111, "event_1 trigger_1")

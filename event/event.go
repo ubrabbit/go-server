@@ -42,15 +42,6 @@ type EventFunc interface {
 	Execute(...interface{})
 }
 
-type EventSignal struct {
-	Name string
-	Args []interface{}
-}
-
-func (self *EventSignal) String() string {
-	return fmt.Sprintf("[Signal][%s]", self.Name)
-}
-
 func (self *EventPool) Clear() {
 	self.Lock()
 	defer self.Unlock()
@@ -59,20 +50,13 @@ func (self *EventPool) Clear() {
 	self.signalQueue <- nil
 }
 
-func (self *EventPool) AddEvent(obj interface{}) bool {
+func (self *EventPool) AddEvent(obj interface{}) (err error) {
 	self.Lock()
-	defer func() {
-		err := recover()
-		if err != nil {
-			LogError("AddEvent Error: ", obj, err)
-		}
-		self.Unlock()
-	}()
+	defer self.Unlock()
 
 	if self.isClear {
-		return false
+		return newError(ERROR_EVENT_CLEARED, "EventPool Has Cleared")
 	}
-
 	id := obj.(EventFunc).ID()
 	name := obj.(EventFunc).Name()
 	_, exists := self.listenQueue[name]
@@ -83,12 +67,12 @@ func (self *EventPool) AddEvent(obj interface{}) bool {
 	if !exists {
 		self.listenQueue[name].PushBack(id)
 		self.eventPool[id] = obj
-		return true
+		return nil
 	}
-	return false
+	return newError(ERROR_EVENT_ADD_EXISTS, "Event Has Add Before")
 }
 
-func (self *EventPool) RemoveEvent(id int) bool {
+func (self *EventPool) RemoveEvent(id int) error {
 	self.Lock()
 	defer func() {
 		err := recover()
@@ -103,12 +87,12 @@ func (self *EventPool) RemoveEvent(id int) bool {
 		name := obj.(EventFunc).Name()
 		e := self.getEvent(name, id)
 		if e == nil {
-			return true
+			return nil
 		}
 		delete(self.eventPool, id)
 		self.listenQueue[name].Remove(e)
 	}
-	return true
+	return nil
 }
 
 func (self *EventPool) getEvent(name string, id int) *list.Element {
@@ -132,6 +116,7 @@ func (self *EventPool) eventListener() {
 	for {
 		obj := <-self.signalQueue
 		if obj == nil {
+			LogInfo(self, "eventListener finished")
 			break
 		}
 
@@ -160,20 +145,16 @@ func (self *EventPool) executeEvent(obj *EventSignal) {
 	}
 }
 
-func getEventPool() *EventPool {
-	return g_GlobalEvent
+func AddEvent(obj interface{}) error {
+	return g_GlobalEvent.AddEvent(obj)
 }
 
-func AddEvent(obj interface{}) bool {
-	return getEventPool().AddEvent(obj)
-}
-
-func RemoveEvent(id int) bool {
-	return getEventPool().RemoveEvent(id)
+func RemoveEvent(id int) error {
+	return g_GlobalEvent.RemoveEvent(id)
 }
 
 func TriggerEvent(name string, args ...interface{}) {
-	getEventPool().TriggerEvent(name, args...)
+	g_GlobalEvent.TriggerEvent(name, args...)
 }
 
 func InitEvent() {
