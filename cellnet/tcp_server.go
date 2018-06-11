@@ -77,15 +77,6 @@ func (self *TcpServer) setStop() {
 
 //此函数运行失败就直接让它崩溃
 func (self *TcpServer) serverRun() {
-	defer func() {
-		err := recover()
-		if err != nil {
-			LogError(self, "RunError:  ", err)
-		}
-		self.Lock()
-		self.setStop()
-		self.Unlock()
-	}()
 	// 开始侦听
 	self.Peer.Start()
 	// 事件队列开始循环
