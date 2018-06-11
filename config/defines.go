@@ -20,20 +20,6 @@ func GetConfigFile() *ConfigFile {
 	return g_ConfigFile
 }
 
-func InitConfig(filepath string) *ConfigFile {
-	cfg, err := config.ReadDefault(filepath)
-	if err != nil {
-		log.Fatalf("Fail To Load Cfg: ", filepath, err)
-	}
-	obj := new(ConfigFile)
-	obj.Path = filepath
-	obj.Config = cfg
-	g_ConfigFile = obj
-
-	InitRunPath()
-	return obj
-}
-
 func (self *ConfigFile) ReadConfig(section string) map[string]string {
 	data := make(map[string]string, 0)
 	if self.Config.HasSection(section) {
@@ -64,6 +50,20 @@ func (self *ConfigFile) ReadConfigOption(section string, option string) string {
 		log.Fatalf("Fail To Load Options: ", section, option)
 	}
 	return value
+}
+
+func InitConfig(filepath string) *ConfigFile {
+	cfg, err := config.ReadDefault(filepath)
+	if err != nil {
+		log.Fatalf("Fail To Load Cfg: ", filepath, err)
+	}
+	obj := new(ConfigFile)
+	obj.Path = filepath
+	obj.Config = cfg
+	g_ConfigFile = obj
+
+	InitRunPath()
+	return obj
 }
 
 func getSettingValue(setting map[string]string, key string, fatal int) string {
