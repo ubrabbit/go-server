@@ -8,8 +8,8 @@ import (
 )
 
 import (
+	. "github.com/ubrabbit/go-server/cellnet"
 	"github.com/ubrabbit/go-server/proto"
-	. "github.com/ubrabbit/go-server/server"
 )
 
 var Address = "127.0.0.1:3832"

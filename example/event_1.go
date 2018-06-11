@@ -5,8 +5,8 @@ import (
 )
 
 import (
-	. "github.com/ubrabbit/go-server/common"
-	. "github.com/ubrabbit/go-server/event"
+	. "github.com/ubrabbit/go-common/common"
+	. "github.com/ubrabbit/go-common/event"
 )
 
 type EventTest_1 struct {
