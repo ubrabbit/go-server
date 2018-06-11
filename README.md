@@ -1,3 +1,2 @@
 # go-server
-go-server
-基于cellnet的服务器框架
+基于Cellnet的服务器封装
