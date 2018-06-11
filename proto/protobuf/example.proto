@@ -1,0 +1,7 @@
+package proto;
+
+message C2SConnect{
+    required string hello = 1;
+    required string account = 2;
+    required string password = 3;
+}

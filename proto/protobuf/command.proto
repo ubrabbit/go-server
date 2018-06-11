@@ -1,9 +1,0 @@
-package proto;
-
-message C2SCommand{
-    required int32 command = 1;
-}
-
-message S2CCommand{
-    required int32 command = 1;
-}
