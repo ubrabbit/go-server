@@ -18,8 +18,8 @@ type ClientCmd struct {
 
 func (self *ClientCmd) OnProtoCommand(c *TcpClient, msg interface{}) {
 	switch msg := msg.(type) {
-	case *proto.C2SConnect:
-		fmt.Println("Server Recv C2SConnect:  ", msg)
+	case *proto.TestConnect:
+		fmt.Println("Server Recv TestConnect:  ", msg)
 	default:
 		fmt.Println("Invalid Command:  ", msg)
 	}
@@ -59,7 +59,7 @@ func TestClient(t *testing.T) {
 	c := "bbb"
 	handle := &ConnectCmd{}
 	obj := NewTcpConnect("client", Address, handle)
-	msg := proto.C2SConnect{
+	msg := proto.TestConnect{
 		Hello:    a,
 		Account:  b,
 		Password: c,

@@ -23,8 +23,8 @@ func (self *ClientCmd) OnProtoCommand(c *TcpClient, msg interface{}) {
 		msg2 := msg.Content
 		LogInfo("TestChatREQ:  ", msg2)
 		//c.Parent.Broadcast(&proto.TestChatACK{Content: "respond_start: " + msg2 + " finish_response", Id: c.SessionID()})
-	case *proto.C2SConnect:
-		LogInfo("C2SConnect:  ", msg)
+	case *proto.TestConnect:
+		LogInfo("TestConnect:  ", msg)
 	default:
 		LogError("Invalid Command:  ", msg)
 	}

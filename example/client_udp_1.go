@@ -23,8 +23,8 @@ func (self *ConnectCmd) OnProtoCommand(c *UdpConnect, msg interface{}) {
 	case *proto.TestChatREQ:
 		msg2 := msg.Content
 		LogInfo("TestChatREQ:  ", msg2)
-	case *proto.C2SConnect:
-		LogInfo("C2SConnect:  ", msg)
+	case *proto.TestConnect:
+		LogInfo("TestConnect:  ", msg)
 	default:
 		LogError("Invalid Command:  ", msg)
 	}
@@ -48,7 +48,7 @@ func main() {
 
 	handle := &ConnectCmd{}
 	obj := NewUdpConnect("client", Address, handle)
-	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
+	obj.PacketSend(&proto.TestConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)

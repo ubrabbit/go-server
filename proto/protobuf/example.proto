@@ -1,6 +1,6 @@
 package proto;
 
-message C2SConnect{
+message TestConnect{
     required string hello = 1;
     required string account = 2;
     required string password = 3;

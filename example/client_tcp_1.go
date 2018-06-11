@@ -48,7 +48,7 @@ func main() {
 
 	handle := &ConnectCmd{}
 	obj := NewTcpConnect("client", Address, handle)
-	obj.PacketSend(&proto.C2SConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
+	obj.PacketSend(&proto.TestConnect{Hello: "aaaaaaaaa", Account: "ubrabbit2", Password: "123456"})
 	// 阻塞的从命令行获取聊天输入
 	ReadConsole(func(str string) {
 		fmt.Println("send: ", str)

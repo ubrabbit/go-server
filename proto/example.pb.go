@@ -8,7 +8,7 @@
 		example.proto
 
 	It has these top-level messages:
-		C2SConnect
+		TestConnect
 */
 package proto
 
@@ -29,32 +29,32 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto1.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type C2SConnect struct {
+type TestConnect struct {
 	Hello    string `protobuf:"bytes,1,req,name=hello" json:"hello"`
 	Account  string `protobuf:"bytes,2,req,name=account" json:"account"`
 	Password string `protobuf:"bytes,3,req,name=password" json:"password"`
 }
 
-func (m *C2SConnect) Reset()                    { *m = C2SConnect{} }
-func (m *C2SConnect) String() string            { return proto1.CompactTextString(m) }
-func (*C2SConnect) ProtoMessage()               {}
-func (*C2SConnect) Descriptor() ([]byte, []int) { return fileDescriptorExample, []int{0} }
+func (m *TestConnect) Reset()                    { *m = TestConnect{} }
+func (m *TestConnect) String() string            { return proto1.CompactTextString(m) }
+func (*TestConnect) ProtoMessage()               {}
+func (*TestConnect) Descriptor() ([]byte, []int) { return fileDescriptorExample, []int{0} }
 
-func (m *C2SConnect) GetHello() string {
+func (m *TestConnect) GetHello() string {
 	if m != nil {
 		return m.Hello
 	}
 	return ""
 }
 
-func (m *C2SConnect) GetAccount() string {
+func (m *TestConnect) GetAccount() string {
 	if m != nil {
 		return m.Account
 	}
 	return ""
 }
 
-func (m *C2SConnect) GetPassword() string {
+func (m *TestConnect) GetPassword() string {
 	if m != nil {
 		return m.Password
 	}
@@ -62,9 +62,9 @@ func (m *C2SConnect) GetPassword() string {
 }
 
 func init() {
-	proto1.RegisterType((*C2SConnect)(nil), "proto.C2SConnect")
+	proto1.RegisterType((*TestConnect)(nil), "proto.TestConnect")
 }
-func (m *C2SConnect) Marshal() (dAtA []byte, err error) {
+func (m *TestConnect) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -74,7 +74,7 @@ func (m *C2SConnect) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *C2SConnect) MarshalTo(dAtA []byte) (int, error) {
+func (m *TestConnect) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -103,7 +103,7 @@ func encodeVarintExample(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-func (m *C2SConnect) Size() (n int) {
+func (m *TestConnect) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.Hello)
@@ -128,7 +128,7 @@ func sovExample(x uint64) (n int) {
 func sozExample(x uint64) (n int) {
 	return sovExample(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *C2SConnect) Unmarshal(dAtA []byte) error {
+func (m *TestConnect) Unmarshal(dAtA []byte) error {
 	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
@@ -152,10 +152,10 @@ func (m *C2SConnect) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: C2SConnect: wiretype end group for non-group")
+			return fmt.Errorf("proto: TestConnect: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: C2SConnect: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: TestConnect: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -386,13 +386,13 @@ var (
 func init() { proto1.RegisterFile("example.proto", fileDescriptorExample) }
 
 var fileDescriptorExample = []byte{
-	// 127 bytes of a gzipped FileDescriptorProto
+	// 128 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4d, 0xad, 0x48, 0xcc,
-	0x2d, 0xc8, 0x49, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0x01, 0x5c,
-	0x5c, 0xce, 0x46, 0xc1, 0xce, 0xf9, 0x79, 0x79, 0xa9, 0xc9, 0x25, 0x42, 0xc2, 0x5c, 0xac, 0x19,
-	0xa9, 0x39, 0x39, 0xf9, 0x12, 0x8c, 0x0a, 0x4c, 0x1a, 0x9c, 0x4e, 0x2c, 0x27, 0xee, 0xc9, 0x33,
-	0x08, 0x89, 0x72, 0xb1, 0x27, 0x26, 0x27, 0xe7, 0x97, 0xe6, 0x95, 0x48, 0x30, 0x21, 0x09, 0x8b,
-	0x71, 0x71, 0x14, 0x24, 0x16, 0x17, 0x97, 0xe7, 0x17, 0xa5, 0x48, 0x30, 0x23, 0xc4, 0x9d, 0x04,
-	0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f, 0xe5,
-	0x18, 0x00, 0x01, 0x00, 0x00, 0xff, 0xff, 0xf6, 0x18, 0xf3, 0xd7, 0x7a, 0x00, 0x00, 0x00,
+	0x2d, 0xc8, 0x49, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0x81, 0x5c,
+	0xdc, 0x21, 0xa9, 0xc5, 0x25, 0xce, 0xf9, 0x79, 0x79, 0xa9, 0xc9, 0x25, 0x42, 0xc2, 0x5c, 0xac,
+	0x19, 0xa9, 0x39, 0x39, 0xf9, 0x12, 0x8c, 0x0a, 0x4c, 0x1a, 0x9c, 0x4e, 0x2c, 0x27, 0xee, 0xc9,
+	0x33, 0x08, 0x89, 0x72, 0xb1, 0x27, 0x26, 0x27, 0xe7, 0x97, 0xe6, 0x95, 0x48, 0x30, 0x21, 0x09,
+	0x8b, 0x71, 0x71, 0x14, 0x24, 0x16, 0x17, 0x97, 0xe7, 0x17, 0xa5, 0x48, 0x30, 0x23, 0xc4, 0x9d,
+	0x04, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f,
+	0xe5, 0x18, 0x00, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe6, 0x59, 0xd6, 0x3e, 0x7b, 0x00, 0x00, 0x00,
 }

@@ -16,7 +16,7 @@ func init() {
 	// example.proto
 	cellnet.RegisterMessageMeta(&cellnet.MessageMeta{
 		Codec: codec.MustGetCodec("gogopb"),
-		Type:  reflect.TypeOf((*C2SConnect)(nil)).Elem(),
-		ID:    45428,
+		Type:  reflect.TypeOf((*TestConnect)(nil)).Elem(),
+		ID:    15276,
 	})
 }

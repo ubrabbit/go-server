@@ -21,8 +21,8 @@ func (self *ClientCmd) OnProtoCommand(c *UdpClient, msg interface{}) {
 		msg2 := msg.Content
 		LogInfo("TestChatREQ:  ", msg2)
 		c.PacketSend(&proto.TestChatREQ{Content: "Udp Respond"})
-	case *proto.C2SConnect:
-		LogInfo("C2SConnect:  ", msg)
+	case *proto.TestConnect:
+		LogInfo("TestConnect:  ", msg)
 	default:
 		LogError("Invalid Command:  ", msg)
 	}
