@@ -1,9 +1,5 @@
 package config
 
-import (
-	. "github.com/ubrabbit/go-server/common"
-)
-
 var g_RedisConfig *RedisConfig = nil
 
 type RedisConfig struct {
@@ -20,5 +16,5 @@ func InitConfigRedis() {
 
 	g_RedisConfig = new(RedisConfig)
 	g_RedisConfig.IP = getSettingValue(setting, "ip", 1)
-	g_RedisConfig.Port = StringToInt(getSettingValue(setting, "port", 1))
+	g_RedisConfig.Port = stringToInt(getSettingValue(setting, "port", 1))
 }

@@ -51,7 +51,7 @@ func NewTcpServer(name string, address string, handle interface{}) *TcpServer {
 	queue := cellnet.NewEventQueue()
 	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
 	peerIns := peer.NewGenericPeer("tcp.Acceptor", name, address, queue)
-	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.PacketRecv)
+	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.packetRecv)
 	obj.Queue = queue
 	obj.Peer = peerIns
 
@@ -142,8 +142,16 @@ func (self *TcpServer) GetClient(sessionID int64) *TcpClient {
 	return nil
 }
 
-func (self *TcpServer) PacketRecv(ev cellnet.Event) {
-	//LogInfo("PacketRecv:  ", ev.Session().ID())
+func (self *TcpServer) Broadcast(msg interface{}) {
+	self.Peer.(cellnet.SessionAccessor).VisitSession(
+		func(ses cellnet.Session) bool {
+			ses.Send(msg)
+			return true
+		})
+}
+
+func (self *TcpServer) packetRecv(ev cellnet.Event) {
+	//LogInfo("packetRecv:  ", ev.Session().ID())
 	msg := ev.Message()
 	switch msg.(type) {
 	// 有新的连接
@@ -174,12 +182,4 @@ func (self *TcpServer) PacketRecv(ev cellnet.Event) {
 			}
 		}
 	}
-}
-
-func (self *TcpServer) Broadcast(msg interface{}) {
-	self.Peer.(cellnet.SessionAccessor).VisitSession(
-		func(ses cellnet.Session) bool {
-			ses.Send(msg)
-			return true
-		})
 }

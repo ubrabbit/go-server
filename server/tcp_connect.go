@@ -56,7 +56,7 @@ func NewTcpConnect(name string, address string, handle interface{}) *TcpConnect 
 	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
 	// peer.NewGenericPeer("tcp.Connector", "Connect", "127.0.0.1:18801", queue)
 	peerIns := peer.NewGenericPeer("tcp.Connector", name, address, queue)
-	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.PacketRecv)
+	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.packetRecv)
 	// 在peerIns接口中查询TCPConnector接口，设置连接超时1秒后自动重连
 	peerIns.(cellnet.TCPConnector).SetReconnectDuration(1 * time.Second)
 	obj.Queue = queue
@@ -136,28 +136,6 @@ func (self *TcpConnect) PacketSend(msg interface{}) {
 	self.Session().Send(msg)
 }
 
-func (self *TcpConnect) PacketRecv(ev cellnet.Event) {
-	defer func() {
-		err := recover()
-		if err != nil {
-			LogError(self, "PacketRecv Error: ", err)
-		}
-	}()
-
-	LogInfo("PacketRecv")
-	msg := ev.Message()
-	switch msg.(type) {
-	case *cellnet.SessionConnected:
-		self.OnConnectSucc(ev)
-	case *cellnet.SessionClosed:
-		self.OnDisconnect(ev)
-	case *rpc.RemoteCallACK:
-		self.OnRpcAck(ev)
-	default:
-		self.connectHandle.(TcpConnectHandle).OnProtoCommand(self, msg)
-	}
-}
-
 func (self *TcpConnect) RpcCall(msg interface{}) error {
 	defer func() {
 		err := recover()
@@ -189,4 +167,26 @@ func (self *TcpConnect) RpcCallSync(msg interface{}, callback func(*TcpConnect, 
 	ret, err := rpc.CallSync(self.Peer, msg, time.Duration(RpcTimeout)*time.Second)
 	callback(self, ret, err)
 	return err
+}
+
+func (self *TcpConnect) packetRecv(ev cellnet.Event) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			LogError(self, "packetRecv Error: ", err)
+		}
+	}()
+
+	LogInfo("packetRecv")
+	msg := ev.Message()
+	switch msg.(type) {
+	case *cellnet.SessionConnected:
+		self.OnConnectSucc(ev)
+	case *cellnet.SessionClosed:
+		self.OnDisconnect(ev)
+	case *rpc.RemoteCallACK:
+		self.OnRpcAck(ev)
+	default:
+		self.connectHandle.(TcpConnectHandle).OnProtoCommand(self, msg)
+	}
 }

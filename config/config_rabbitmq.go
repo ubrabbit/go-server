@@ -1,9 +1,5 @@
 package config
 
-import (
-	. "github.com/ubrabbit/go-server/common"
-)
-
 var g_RabbitMQConfig *RabbitMQConfig = nil
 
 type RabbitMQConfig struct {
@@ -26,5 +22,5 @@ func InitConfigRabbitMQ() {
 	g_RabbitMQConfig.Password = getSettingValue(setting, "password", 1)
 	g_RabbitMQConfig.Host = getSettingValue(setting, "host", 1)
 	g_RabbitMQConfig.HostName = getSettingValue(setting, "hostname", 1)
-	g_RabbitMQConfig.Port = StringToInt(getSettingValue(setting, "port", 1))
+	g_RabbitMQConfig.Port = stringToInt(getSettingValue(setting, "port", 1))
 }

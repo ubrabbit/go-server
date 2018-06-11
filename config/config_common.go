@@ -2,8 +2,9 @@ package config
 
 import (
 	config "github.com/ubrabbit/go-config"
-	. "github.com/ubrabbit/go-server/common"
 	"log"
+	"strconv"
+	"strings"
 )
 
 type ConfigFile struct {
@@ -70,5 +71,13 @@ func getSettingValue(setting map[string]string, key string, fatal int) string {
 	if !ok && fatal > 0 {
 		log.Fatalf("setting has no key %s", key)
 	}
-	return StripString(value)
+	return strings.TrimSpace(value)
+}
+
+func stringToInt(str string) int {
+	i, err := strconv.Atoi(str)
+	if err != nil {
+		log.Fatalf("Fail To StringToInt: ", str)
+	}
+	return i
 }
