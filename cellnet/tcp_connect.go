@@ -133,7 +133,12 @@ func (self *TcpConnect) PacketSend(msg interface{}) {
 		}
 		self.Unlock()
 	}()
-	self.Session().Send(msg)
+	session := self.Session()
+	if session == nil {
+		LogError("Session Closed: ", self)
+		return
+	}
+	session.Send(msg)
 }
 
 func (self *TcpConnect) RpcCall(msg interface{}) error {

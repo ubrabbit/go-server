@@ -19,22 +19,26 @@ func TestTcpServer(t *testing.T) {
 	handle := &ClientCmd{}
 	obj := NewTcpServer("server", Address, handle)
 	go obj.WaitStop()
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		obj.Disconnect()
+	}()
 }
 
 func TestTcpConnect(t *testing.T) {
 	fmt.Printf("\n\n=====================  TestTcpConnect  =====================\n")
 
-	a := "hello"
-	b := "aaa"
-	c := "bbb"
 	handle := &ConnectCmd{}
 	obj := NewTcpConnect("client", Address, handle)
 	msg := proto.TestConnect{
-		Hello:    a,
-		Account:  b,
-		Password: c,
+		Hello:    "TestConnect 1",
+		Account:  "TestConnect 2",
+		Password: "TestConnect 3",
 	}
-	obj.PacketSend(&msg)
 
 	time.Sleep(1 * time.Second)
+	obj.PacketSend(&msg)
+	time.Sleep(2 * time.Second)
+	obj.PacketSend(&msg)
 }

@@ -9,6 +9,10 @@ import (
 	"github.com/davyxu/cellnet"
 )
 
+import (
+	. "github.com/ubrabbit/go-common/common"
+)
+
 type UdpClient struct {
 	sync.Mutex
 
@@ -39,5 +43,10 @@ func (self *UdpClient) PacketSend(msg interface{}) {
 	self.Lock()
 	defer self.Unlock()
 
-	self.Session().Send(msg)
+	session := self.Session()
+	if session == nil {
+		LogError("Session Closed: ", self)
+		return
+	}
+	session.Send(msg)
 }

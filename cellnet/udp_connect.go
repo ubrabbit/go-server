@@ -58,6 +58,9 @@ func NewUdpConnect(name string, address string, handle interface{}) *UdpConnect 
 	// 等待连接成功再返回
 	<-obj.waitConnected
 	obj.waitConnected = nil
+	if obj.Session() == nil {
+		return nil
+	}
 	return obj
 }
 
@@ -95,7 +98,12 @@ func (self *UdpConnect) PacketSend(msg interface{}) {
 		}
 		self.Unlock()
 	}()
-	self.Session().Send(msg)
+	session := self.Session()
+	if session == nil {
+		LogError("Session Closed: ", self)
+		return
+	}
+	session.Send(msg)
 }
 
 func (self *UdpConnect) packetRecv(ev cellnet.Event) {
