@@ -1,4 +1,4 @@
-package server
+package cellnet
 
 import (
 	"fmt"
@@ -23,10 +23,10 @@ type UdpConnectHandle interface {
 
 type UdpConnect struct {
 	sync.Mutex
-	Name    string
-	Address string
-	Queue   cellnet.EventQueue
-	Peer    cellnet.GenericPeer
+	Name     string
+	Address  string
+	queueIns cellnet.EventQueue
+	peerIns  cellnet.GenericPeer
 
 	objectID      int64
 	waitConnected chan bool
@@ -48,12 +48,12 @@ func NewUdpConnect(name string, address string, handle interface{}) *UdpConnect 
 	// peer.NewGenericPeer("tcp.Connector", "Connect", "127.0.0.1:18801", queue)
 	peerIns := peer.NewGenericPeer("udp.Connector", name, address, queue)
 	proc.BindProcessorHandler(peerIns, "udp.ltv", obj.packetRecv)
-	obj.Queue = queue
-	obj.Peer = peerIns
+	obj.queueIns = queue
+	obj.peerIns = peerIns
 	// 开始发起到服务器的连接
-	obj.Peer.Start()
+	obj.peerIns.Start()
 	// 事件队列开始循环
-	obj.Queue.StartLoop()
+	obj.queueIns.StartLoop()
 
 	// 等待连接成功再返回
 	<-obj.waitConnected
@@ -71,7 +71,7 @@ func (self *UdpConnect) ObjectID() int64 {
 }
 
 func (self *UdpConnect) Session() cellnet.Session {
-	return self.Peer.(interface {
+	return self.peerIns.(interface {
 		Session() cellnet.Session
 	}).Session()
 }

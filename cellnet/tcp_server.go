@@ -1,7 +1,8 @@
-package server
+package cellnet
 
 import (
 	"fmt"
+	"net"
 	"sync"
 )
 
@@ -10,9 +11,12 @@ import (
 	"github.com/davyxu/cellnet/peer"
 	"github.com/davyxu/cellnet/proc"
 
+	_ "github.com/davyxu/cellnet/peer/gorillaws"
 	_ "github.com/davyxu/cellnet/peer/tcp"
+	_ "github.com/davyxu/cellnet/proc/gorillaws"
 	_ "github.com/davyxu/cellnet/proc/tcp"
 	"github.com/davyxu/cellnet/rpc"
+	"github.com/gorilla/websocket"
 )
 
 import (
@@ -27,11 +31,12 @@ type TcpClientHandle interface {
 
 type TcpServer struct {
 	sync.Mutex
-	Name    string
-	Address string
-	Queue   cellnet.EventQueue
-	Peer    cellnet.GenericPeer
-	Pool    map[int64]*TcpClient
+	Name          string
+	Type          string
+	listenAddress string
+	queueIns      cellnet.EventQueue
+	peerIns       cellnet.GenericPeer
+	clientPool    map[int64]*TcpClient
 
 	objectID     int64
 	clientHandle interface{}
@@ -41,8 +46,9 @@ type TcpServer struct {
 func NewTcpServer(name string, address string, handle interface{}) *TcpServer {
 	obj := new(TcpServer)
 	obj.Name = name
-	obj.Address = address
-	obj.Pool = make(map[int64]*TcpClient, 0)
+	obj.Type = "tcp"
+	obj.listenAddress = address
+	obj.clientPool = make(map[int64]*TcpClient, 0)
 	obj.clientHandle = handle
 	obj.objectID = newObjectID()
 	obj.waitStopped = make(chan bool, 1)
@@ -52,37 +58,49 @@ func NewTcpServer(name string, address string, handle interface{}) *TcpServer {
 	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
 	peerIns := peer.NewGenericPeer("tcp.Acceptor", name, address, queue)
 	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.packetRecv)
-	obj.Queue = queue
-	obj.Peer = peerIns
+	obj.queueIns = queue
+	obj.peerIns = peerIns
+	// 开始侦听
+	obj.peerIns.Start()
+	// 事件队列开始循环
+	obj.queueIns.StartLoop()
+	// 阻塞等待事件队列结束退出( 在另外的goroutine调用queue.StopLoop() )
+	go obj.queueIns.Wait()
+	return obj
+}
 
-	go obj.serverRun()
+func NewWebSocketServer(name string, address string, handle interface{}) *TcpServer {
+	obj := new(TcpServer)
+	obj.Name = name
+	obj.Type = "websocket"
+	obj.listenAddress = address
+	obj.clientPool = make(map[int64]*TcpClient, 0)
+	obj.clientHandle = handle
+	obj.objectID = newObjectID()
+	obj.waitStopped = make(chan bool, 1)
+
+	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
+	queue := cellnet.NewEventQueue()
+	peerIns := peer.NewGenericPeer("gorillaws.Acceptor", name, address, queue)
+	proc.BindProcessorHandler(peerIns, "gorillaws.ltv", obj.packetRecv)
+	obj.queueIns = queue
+	obj.peerIns = peerIns
+	// 开始侦听
+	obj.peerIns.Start()
+	// 事件队列开始循环
+	obj.queueIns.StartLoop()
+	// 阻塞等待事件队列结束退出( 在另外的goroutine调用queue.StopLoop() )
+	go obj.queueIns.Wait()
 	return obj
 }
 
 func (self *TcpServer) String() string {
-	return fmt.Sprintf("[Server][%s][%s]-%d ", self.Address, self.Name, self.objectID)
+	return fmt.Sprintf("[Server][%s][%s]-%d ", self.listenAddress, self.Name, self.objectID)
 }
 
 func (self *TcpServer) WaitStop() {
 	<-self.waitStopped
 	LogInfo(self, "Stopped")
-}
-
-func (self *TcpServer) setStop() {
-	if self.waitStopped != nil {
-		self.waitStopped <- true
-		self.waitStopped = nil
-	}
-}
-
-//此函数运行失败就直接让它崩溃
-func (self *TcpServer) serverRun() {
-	// 开始侦听
-	self.Peer.Start()
-	// 事件队列开始循环
-	self.Queue.StartLoop()
-	// 阻塞等待事件队列结束退出( 在另外的goroutine调用queue.StopLoop() )
-	self.Queue.Wait()
 }
 
 func (self *TcpServer) Disconnect() {
@@ -92,18 +110,27 @@ func (self *TcpServer) Disconnect() {
 		if err != nil {
 			LogError(self, " Disconnect Error: ", err)
 		}
-		self.setStop()
+		if self.waitStopped != nil {
+			self.waitStopped <- true
+			self.waitStopped = nil
+		}
 		self.Unlock()
 	}()
-	self.Peer.Stop()
+	self.peerIns.Stop()
 }
 
 func (self *TcpServer) OnConnectSucc(ev cellnet.Event) {
 	self.Lock()
 	defer self.Unlock()
 
-	client := newTcpClient(ev)
-	self.Pool[client.SessionID()] = client
+	address := ""
+	if self.Type == "tcp" {
+		address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
+	} else {
+		address = ev.Session().Raw().(*websocket.Conn).RemoteAddr().String()
+	}
+	client := newTcpClient(address, ev)
+	self.clientPool[client.SessionID()] = client
 
 	LogInfo(client, "Connected")
 	self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "Connect")
@@ -114,9 +141,9 @@ func (self *TcpServer) OnDisconnect(ev cellnet.Event) {
 	defer self.Unlock()
 
 	sessionID := ev.Session().ID()
-	client, ok := self.Pool[sessionID]
+	client, ok := self.clientPool[sessionID]
 	if ok {
-		delete(self.Pool, sessionID)
+		delete(self.clientPool, sessionID)
 		LogInfo(client, "Disconnected")
 		self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "DisConnect")
 	}
@@ -126,7 +153,7 @@ func (self *TcpServer) GetClient(sessionID int64) *TcpClient {
 	self.Lock()
 	defer self.Unlock()
 
-	obj, ok := self.Pool[sessionID]
+	obj, ok := self.clientPool[sessionID]
 	if ok {
 		return obj
 	}
@@ -134,7 +161,7 @@ func (self *TcpServer) GetClient(sessionID int64) *TcpClient {
 }
 
 func (self *TcpServer) Broadcast(msg interface{}) {
-	self.Peer.(cellnet.SessionAccessor).VisitSession(
+	self.peerIns.(cellnet.SessionAccessor).VisitSession(
 		func(ses cellnet.Session) bool {
 			ses.Send(msg)
 			return true

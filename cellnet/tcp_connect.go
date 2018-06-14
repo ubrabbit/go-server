@@ -1,4 +1,4 @@
-package server
+package cellnet
 
 import (
 	"fmt"
@@ -30,10 +30,10 @@ type TcpConnectHandle interface {
 
 type TcpConnect struct {
 	sync.Mutex
-	Name    string
-	Address string
-	Queue   cellnet.EventQueue
-	Peer    cellnet.GenericPeer
+	Name     string
+	Address  string
+	queueIns cellnet.EventQueue
+	peerIns  cellnet.GenericPeer
 
 	sessionID     int64
 	objectID      int64
@@ -59,12 +59,12 @@ func NewTcpConnect(name string, address string, handle interface{}) *TcpConnect 
 	proc.BindProcessorHandler(peerIns, "tcp.ltv", obj.packetRecv)
 	// 在peerIns接口中查询TCPConnector接口，设置连接超时1秒后自动重连
 	peerIns.(cellnet.TCPConnector).SetReconnectDuration(1 * time.Second)
-	obj.Queue = queue
-	obj.Peer = peerIns
+	obj.queueIns = queue
+	obj.peerIns = peerIns
 	// 开始发起到服务器的连接
-	obj.Peer.Start()
+	obj.peerIns.Start()
 	// 事件队列开始循环
-	obj.Queue.StartLoop()
+	obj.queueIns.StartLoop()
 
 	// 等待连接成功再返回
 	<-obj.waitConnected
@@ -82,7 +82,7 @@ func (self *TcpConnect) ObjectID() int64 {
 }
 
 func (self *TcpConnect) Session() cellnet.Session {
-	return self.Peer.(interface {
+	return self.peerIns.(interface {
 		Session() cellnet.Session
 	}).Session()
 }
@@ -101,7 +101,7 @@ func (self *TcpConnect) Disconnect() {
 		}
 		self.Unlock()
 	}()
-	self.Peer.Stop()
+	self.peerIns.Stop()
 }
 
 func (self *TcpConnect) OnConnectSucc(ev cellnet.Event) {
@@ -145,7 +145,7 @@ func (self *TcpConnect) RpcCall(msg interface{}) error {
 	}()
 	//异步
 	LogInfo("RpcCall")
-	rpc.Call(self.Peer, msg, time.Duration(RpcTimeout)*time.Second,
+	rpc.Call(self.peerIns, msg, time.Duration(RpcTimeout)*time.Second,
 		func(raw interface{}) {
 			switch result := raw.(type) {
 			case error:
@@ -164,7 +164,7 @@ func (self *TcpConnect) RpcCallSync(msg interface{}, callback func(*TcpConnect, 
 	}()
 	//同步
 	LogInfo("RpcCallSync")
-	ret, err := rpc.CallSync(self.Peer, msg, time.Duration(RpcTimeout)*time.Second)
+	ret, err := rpc.CallSync(self.peerIns, msg, time.Duration(RpcTimeout)*time.Second)
 	callback(self, ret, err)
 	return err
 }

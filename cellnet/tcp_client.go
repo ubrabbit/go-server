@@ -1,8 +1,7 @@
-package server
+package cellnet
 
 import (
 	"fmt"
-	"net"
 	"sync"
 )
 
@@ -19,9 +18,10 @@ type TcpClient struct {
 	session   cellnet.Session
 }
 
-func newTcpClient(ev cellnet.Event) *TcpClient {
+func newTcpClient(address string, ev cellnet.Event) *TcpClient {
 	obj := new(TcpClient)
-	obj.Address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
+	//obj.Address = ev.Session().Raw().(net.Conn).RemoteAddr().String()
+	obj.Address = address
 	obj.session = ev.Session()
 	obj.sessionID = ev.Session().ID()
 	obj.objectID = newObjectID()

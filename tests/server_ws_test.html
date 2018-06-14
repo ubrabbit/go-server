@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<p>在Chrome浏览器中按F12打开调试窗口，Console中查看结果</p>
+<script type="text/javascript">
+
+    window.onload = function () {
+
+        console.log("hello")
+
+        var ws = new WebSocket("ws://127.0.0.1:3833/test");
+
+        ws.onopen = function(evt) {
+            console.log("Connection open ...");
+            ws.send('proto.TestWSJson\n{"Msg":"hello world" }');
+        };
+
+        ws.onmessage = function(evt) {
+            console.log( "Received Message: " + evt.data);
+            //ws.close();
+        };
+
+        ws.onclose = function(evt) {
+            console.log("Connection closed.");
+        };
+    }
+
+</script>
+</body>
+</html>

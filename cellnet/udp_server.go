@@ -1,4 +1,4 @@
-package server
+package cellnet
 
 import (
 	"fmt"
@@ -24,10 +24,10 @@ type UdpClientHandle interface {
 
 type UdpServer struct {
 	sync.Mutex
-	Name    string
-	Address string
-	Queue   cellnet.EventQueue
-	Peer    cellnet.GenericPeer
+	Name     string
+	Address  string
+	queueIns cellnet.EventQueue
+	peerIns  cellnet.GenericPeer
 
 	objectID     int64
 	clientHandle interface{}
@@ -47,8 +47,8 @@ func NewUdpServer(name string, address string, handle interface{}) *UdpServer {
 	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
 	peerIns := peer.NewGenericPeer("udp.Acceptor", name, address, queue)
 	proc.BindProcessorHandler(peerIns, "udp.ltv", obj.packetRecv)
-	obj.Queue = queue
-	obj.Peer = peerIns
+	obj.queueIns = queue
+	obj.peerIns = peerIns
 
 	go obj.serverRun()
 	return obj
@@ -73,11 +73,11 @@ func (self *UdpServer) setStop() {
 //此函数运行失败就直接让它崩溃
 func (self *UdpServer) serverRun() {
 	// 开始侦听
-	self.Peer.Start()
+	self.peerIns.Start()
 	// 事件队列开始循环
-	self.Queue.StartLoop()
+	self.queueIns.StartLoop()
 	// 阻塞等待事件队列结束退出( 在另外的goroutine调用queue.StopLoop() )
-	self.Queue.Wait()
+	self.queueIns.Wait()
 }
 
 func (self *UdpServer) packetRecv(ev cellnet.Event) {
