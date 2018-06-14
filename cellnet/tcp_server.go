@@ -100,7 +100,7 @@ func (self *TcpServer) String() string {
 
 func (self *TcpServer) WaitStop() {
 	<-self.waitStopped
-	LogInfo(self, "Stopped")
+	LogInfo("Stopped : %v", self)
 }
 
 func (self *TcpServer) Disconnect() {
@@ -108,7 +108,7 @@ func (self *TcpServer) Disconnect() {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, " Disconnect Error: ", err)
+			LogError("Disconnect Error: %v : %v", self, err)
 		}
 		if self.waitStopped != nil {
 			self.waitStopped <- true
@@ -132,7 +132,7 @@ func (self *TcpServer) OnConnectSucc(ev cellnet.Event) {
 	client := newTcpClient(address, ev)
 	self.clientPool[client.SessionID()] = client
 
-	LogInfo(client, "Connected")
+	LogInfo("Connected : %v", client)
 	self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "Connect")
 }
 
@@ -144,7 +144,7 @@ func (self *TcpServer) OnDisconnect(ev cellnet.Event) {
 	client, ok := self.clientPool[sessionID]
 	if ok {
 		delete(self.clientPool, sessionID)
-		LogInfo(client, "Disconnected")
+		LogInfo("Disconnected : %v", client)
 		self.clientHandle.(TcpClientHandle).OnEventTrigger(client, "DisConnect")
 	}
 }
@@ -169,27 +169,26 @@ func (self *TcpServer) Broadcast(msg interface{}) {
 }
 
 func (self *TcpServer) packetRecv(ev cellnet.Event) {
-	//LogInfo("packetRecv:  ", ev.Session().ID())
 	msg := ev.Message()
 	switch msg.(type) {
 	// 有新的连接
 	case *cellnet.SessionAccepted:
-		LogInfo("Server Accepted", ev.Session().ID())
+		LogDebug("Server Accepted : %d", ev.Session().ID())
 		self.OnConnectSucc(ev)
 	// 有连接断开
 	case *cellnet.SessionClosed:
-		LogInfo("Session Closed: ", ev.Session().ID())
+		LogDebug("Session Closed : %d", ev.Session().ID())
 		self.OnDisconnect(ev)
 	default:
 		client := self.GetClient(ev.Session().ID())
 		if client == nil {
-			LogError(self, "Invalid Client: ", ev.Session().ID())
+			LogError("Invalid Client: %v : %d", self, ev.Session().ID())
 		} else {
 			// 当服务器收到的是一个rpc消息
 			if rpcevent, ok := ev.(*rpc.RecvMsgEvent); ok {
 				response, err := self.clientHandle.(TcpClientHandle).OnRpcCommand(client, msg)
 				if err != nil {
-					LogError(self, "RpcCommand Error")
+					LogError("RpcCommand Error : %v : %v", self, err)
 				} else {
 					if response != nil {
 						rpcevent.Reply(response)

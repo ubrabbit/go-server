@@ -21,12 +21,11 @@ type ConnectCmd struct {
 func (self *ConnectCmd) OnProtoCommand(c *UdpConnect, msg interface{}) {
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
-		msg2 := msg.Content
-		LogInfo("TestChatREQ:  ", msg2)
+		LogInfo("TestChatREQ:  %v", msg.Content)
 	case *proto.TestConnect:
-		LogInfo("TestConnect:  ", msg)
+		LogInfo("TestConnect:  %v", msg)
 	default:
-		LogError("Invalid Command:  ", msg)
+		LogError("Invalid Command:  %v", msg)
 	}
 }
 

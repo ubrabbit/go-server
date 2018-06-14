@@ -44,7 +44,6 @@ func NewUdpServer(name string, address string, handle interface{}) *UdpServer {
 
 	// 创建一个事件处理队列，整个服务器只有这一个队列处理事件，服务器属于单线程服务器
 	queue := cellnet.NewEventQueue()
-	// 创建一个tcp的侦听器，名称为server，连接地址为127.0.0.1:8801，所有连接将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
 	peerIns := peer.NewGenericPeer("udp.Acceptor", name, address, queue)
 	proc.BindProcessorHandler(peerIns, "udp.ltv", obj.packetRecv)
 	obj.queueIns = queue
@@ -60,7 +59,7 @@ func (self *UdpServer) String() string {
 
 func (self *UdpServer) WaitStop() {
 	<-self.waitStopped
-	LogInfo(self, "Stopped")
+	LogInfo("Stopped: %v", self)
 }
 
 func (self *UdpServer) setStop() {
@@ -81,8 +80,8 @@ func (self *UdpServer) serverRun() {
 }
 
 func (self *UdpServer) packetRecv(ev cellnet.Event) {
-	LogInfo("packetRecv:  ", ev.Session().ID())
 	msg := ev.Message()
+	LogDebug("packetRecv:  %d %v", ev.Session().ID(), msg)
 	client := newUdpClient(ev)
 	self.clientHandle.(UdpClientHandle).OnProtoCommand(client, msg)
 }

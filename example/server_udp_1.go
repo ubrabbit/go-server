@@ -18,13 +18,12 @@ type ClientCmd struct {
 func (self *ClientCmd) OnProtoCommand(c *UdpClient, msg interface{}) {
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
-		msg2 := msg.Content
-		LogInfo("TestChatREQ:  ", msg2)
+		LogInfo("TestChatREQ:  %v", msg.Content)
 		c.PacketSend(&proto.TestChatREQ{Content: "Udp Respond"})
 	case *proto.TestConnect:
-		LogInfo("TestConnect:  ", msg)
+		LogInfo("TestConnect:  %v", msg)
 	default:
-		LogError("Invalid Command:  ", msg)
+		LogError("Invalid Command:  %v", msg)
 	}
 }
 

@@ -44,8 +44,6 @@ func NewUdpConnect(name string, address string, handle interface{}) *UdpConnect 
 
 	// 创建一个事件处理队列，整个客户端只有这一个队列处理事件，客户端属于单线程模型
 	queue := cellnet.NewEventQueue()
-	// 创建一个tcp的连接器，名称为Connect，连接地址为127.0.0.1:8801，将事件投递到queue队列,单线程的处理（收发封包过程是多线程）
-	// peer.NewGenericPeer("tcp.Connector", "Connect", "127.0.0.1:18801", queue)
 	peerIns := peer.NewGenericPeer("udp.Connector", name, address, queue)
 	proc.BindProcessorHandler(peerIns, "udp.ltv", obj.packetRecv)
 	obj.queueIns = queue
@@ -80,7 +78,7 @@ func (self *UdpConnect) Session() cellnet.Session {
 }
 
 func (self *UdpConnect) OnConnectSucc(ev cellnet.Event) {
-	LogInfo(self, "ConnectSucc")
+	LogInfo("ConnectSucc: %v", self)
 
 	//连接成功，取消阻塞
 	if self.waitConnected != nil {
@@ -94,13 +92,13 @@ func (self *UdpConnect) PacketSend(msg interface{}) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "PacketSend Error: ", err)
+			LogError("PacketSend Error: %v : %v", err)
 		}
 		self.Unlock()
 	}()
 	session := self.Session()
 	if session == nil {
-		LogError("Session Closed: ", self)
+		LogError("Session Closed: %v", self)
 		return
 	}
 	session.Send(msg)
@@ -110,10 +108,10 @@ func (self *UdpConnect) packetRecv(ev cellnet.Event) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "packetRecv Error: ", err)
+			LogError("packetRecv Error: %v : %v", self, err)
 		}
 	}()
-	LogInfo("packetRecv")
+	LogDebug("packetRecv : %v", ev.Message())
 	msg := ev.Message()
 	switch msg.(type) {
 	case *cellnet.SessionConnected:

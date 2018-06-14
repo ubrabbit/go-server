@@ -97,7 +97,7 @@ func (self *TcpConnect) Disconnect() {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, " Disconnect Error: ", err)
+			LogError("Disconnect Error: %v : %v", self, err)
 		}
 		self.Unlock()
 	}()
@@ -105,7 +105,7 @@ func (self *TcpConnect) Disconnect() {
 }
 
 func (self *TcpConnect) OnConnectSucc(ev cellnet.Event) {
-	LogInfo(self, "ConnectSucc")
+	LogInfo("ConnectSucc : %v", self)
 	self.sessionID = self.Session().ID()
 
 	//连接成功，取消阻塞
@@ -117,7 +117,7 @@ func (self *TcpConnect) OnConnectSucc(ev cellnet.Event) {
 }
 
 func (self *TcpConnect) OnDisconnect(ev cellnet.Event) {
-	LogInfo(self, "Disconnected")
+	LogInfo("Disconnected : %v", self)
 	self.connectHandle.(TcpConnectHandle).OnEventTrigger(self, "DisConnect")
 }
 
@@ -129,13 +129,13 @@ func (self *TcpConnect) PacketSend(msg interface{}) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "PacketSend Error: ", err)
+			LogError("PacketSend Error: %v : %v", self, err)
 		}
 		self.Unlock()
 	}()
 	session := self.Session()
 	if session == nil {
-		LogError("Session Closed: ", self)
+		LogError("Session Closed: %v", self)
 		return
 	}
 	session.Send(msg)
@@ -145,16 +145,16 @@ func (self *TcpConnect) RpcCall(msg interface{}) error {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "RpcCall Error: ", err)
+			LogError("RpcCall Error: %v : %v", self, err)
 		}
 	}()
 	//异步
-	LogInfo("RpcCall")
+	LogDebug("RpcCall : %v", self)
 	rpc.Call(self.peerIns, msg, time.Duration(RpcTimeout)*time.Second,
 		func(raw interface{}) {
 			switch result := raw.(type) {
 			case error:
-				LogError(self, "RpcCall Error: ", result)
+				LogError("RpcCall Error: %v %v", self, result)
 			}
 		})
 	return nil
@@ -164,11 +164,11 @@ func (self *TcpConnect) RpcCallSync(msg interface{}, callback func(*TcpConnect, 
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "RpcCallSync Error: ", err)
+			LogError("RpcCallSync Error: %v : %v", self, err)
 		}
 	}()
 	//同步
-	LogInfo("RpcCallSync")
+	LogDebug("RpcCallSync : %v", self)
 	ret, err := rpc.CallSync(self.peerIns, msg, time.Duration(RpcTimeout)*time.Second)
 	callback(self, ret, err)
 	return err
@@ -178,11 +178,11 @@ func (self *TcpConnect) packetRecv(ev cellnet.Event) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			LogError(self, "packetRecv Error: ", err)
+			LogError("packetRecv Error: %v : %v", self, err)
 		}
 	}()
 
-	LogInfo("packetRecv")
+	LogDebug("packetRecv : %v", ev.Message())
 	msg := ev.Message()
 	switch msg.(type) {
 	case *cellnet.SessionConnected:

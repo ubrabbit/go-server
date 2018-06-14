@@ -17,28 +17,24 @@ type ClientCmd struct {
 }
 
 func (self *ClientCmd) OnProtoCommand(c *TcpClient, msg interface{}) {
-	//LogInfo("onServerCommand:  ", c.ObjectID())
 	switch msg := msg.(type) {
 	case *proto.TestChatREQ:
-		msg2 := msg.Content
-		LogInfo("TestChatREQ:  ", msg2)
-		//c.Parent.Broadcast(&proto.TestChatACK{Content: "respond_start: " + msg2 + " finish_response", Id: c.SessionID()})
+		LogInfo("TestChatREQ:  %v", msg.Content)
 	case *proto.TestConnect:
-		LogInfo("TestConnect:  ", msg)
+		LogInfo("TestConnect:  %v", msg)
 	default:
-		LogError("Invalid Command:  ", msg)
+		LogError("Invalid Command:  %v", msg)
 	}
 }
 
 func (self *ClientCmd) OnRpcCommand(c *TcpClient, msg interface{}) (interface{}, error) {
 	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand")
-	time.Sleep(10 * time.Second)
-	fmt.Println(">>>>>>>>>>>>>>>>>>>> OnRpcCommand Ack")
+	time.Sleep(3 * time.Second)
 	return proto.TestChatREQ{Content: "Rpc_Respond"}, nil
 }
 
 func (self *ClientCmd) OnEventTrigger(c *TcpClient, name string, args ...interface{}) {
-	LogInfo(c, " EventTrigger: ", name, args)
+	LogInfo(" EventTrigger: %v %s %v", c, name, args)
 }
 
 func main() {

@@ -45,7 +45,7 @@ func (self *UdpClient) PacketSend(msg interface{}) {
 
 	session := self.Session()
 	if session == nil {
-		LogError("Session Closed: ", self)
+		LogError("Session Closed: %v", self)
 		return
 	}
 	session.Send(msg)
