@@ -16,7 +16,7 @@ import (
 )
 
 import (
-	. "github.com/ubrabbit/go-common/common"
+	. "github.com/ubrabbit/go-public/common"
 )
 
 const (

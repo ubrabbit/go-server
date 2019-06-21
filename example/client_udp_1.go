@@ -8,7 +8,7 @@ import (
 )
 
 import (
-	. "github.com/ubrabbit/go-common/common"
+	. "github.com/ubrabbit/go-public/common"
 	. "github.com/ubrabbit/go-server/cellnet"
 	"github.com/ubrabbit/go-server/proto"
 )
